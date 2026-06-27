@@ -10,6 +10,8 @@ enforce_mode: warn         # warn | block
 do_not_autoresolve: []     # pairs the gate must never auto-merge, e.g. ["HDL/LDL", "Free/Total T4"]
 adapters: []               # pointers to co-located project adapters, e.g. ["~/Code/foo/.provenance/adapter.md"]
 auto_update: notify        # notify | off  (never silent-pulls executable code)
+backfill_renames: ask      # ask | never | auto-safe  (rename .md -> .ai.md during backfill?)
+sheets_provenance: column  # column (:Provenance companion) | other  (asked & recorded on first sheets run)
 ---
 
 # Personal overrides

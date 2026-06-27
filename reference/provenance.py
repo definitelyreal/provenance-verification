@@ -13,8 +13,8 @@ import sys
 # --- canonical vocabulary -------------------------------------------------
 TYPES = ("ai-suggestion", "ai-processed", "human")
 STATUSES = ("unverified", "verified", "disputed", "stale")
-LEGACY_HIGHLIGHT = "#4dff4d"   # old RG green
-CANON_HIGHLIGHT = "#feb4dc"    # pink = AI, unverified
+LEGACY_HIGHLIGHTS = ("#4dff4d", "#feb4dc")  # green, pink — both rewritten to canonical
+CANON_HIGHLIGHT = "#e3dfec"    # light purple = AI, unverified
 
 # --- detection ------------------------------------------------------------
 # Canonical status form: ai-suggestion:unverified / ai-processed:verified michael 2026-06-25
@@ -75,6 +75,30 @@ def normalize(marker: str) -> str:
 def canonical_frontmatter(session_id: str, date: str, asof: str | None = None, type_: str = "ai-suggestion") -> str:
     asof_part = f" | asof:{asof}" if asof else ""
     return f"<!-- {type_}:unverified | session:{session_id} | date:{date}{asof_part} -->"
+
+
+# --- soft .ai infix resolution -------------------------------------------
+def variants(path):
+    """Both forms of a path so references resolve whether or not the user has
+    dropped the soft `.ai` infix:  foo.ai.md <-> foo.md."""
+    import os
+    d, b = os.path.split(path)
+    if ".ai." in b:
+        other = b.replace(".ai.", ".", 1)
+    else:
+        root, ext = os.path.splitext(b)
+        other = root + ".ai" + ext
+    return [path, os.path.join(d, other)]
+
+
+def resolve(path):
+    """Return whichever variant actually exists (preferring the given path), so
+    removing `.ai` from a filename never breaks a reference."""
+    import os
+    for p in variants(path):
+        if os.path.exists(p):
+            return p
+    return path
 
 
 # --- CLI ------------------------------------------------------------------

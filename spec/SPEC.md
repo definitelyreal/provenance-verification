@@ -15,6 +15,7 @@ This file is the single source of truth. Where a project's prose rules disagree 
 - **The marker is always a value, comment, or cell — never a filename or path component.** macOS Finder and Dropbox silently rewrite `:` to `/` in paths. The only filename-level marker is the colon-free `.ai.md` extension.
 - **In YAML frontmatter, never put a space after the colon** (`ai-suggestion:unverified`, not `ai-suggestion: unverified`) — YAML reads colon-space as a key/value split. Quote if a space is unavoidable.
 - **Origin and verification are two facts, so the marker carries both.** This is the core reason for the status form below.
+- **The `.ai` infix is soft.** When resolving a reference to `name.ai.<ext>`, also look for `name.<ext>` (and vice versa) — they are the same logical file. A user may drop `.ai` (e.g. on taking ownership) without breaking any reference; code that touches `.ai` files must check both forms (see `reference/provenance.py` `resolve()`).
 
 ---
 
@@ -105,18 +106,18 @@ Trust signals are *consumed, not built* — stars, citations, clearances, valida
 | Markdown file | `.ai.md` extension + frontmatter `<!-- ai-suggestion:unverified \| session:<full-uuid> \| date:YYYY-MM-DD \| asof:YYYY-MM-DD -->` |
 | Inline section in a mixed file | `<!-- ai-suggestion:unverified -->` … `<!-- /ai -->` |
 | Code file | top comment `# ai-processed:unverified · session:<full-uuid> · YYYY-MM-DD` |
-| Google Sheets | `:Provenance` companion column, cell value `ai-suggestion:unverified <YYYY-MM-DD> <short-id>`; touched cells highlighted `#FEB4DC` |
-| Google Docs | literal `<!-- ai-suggestion:unverified -->` above the block; `#FEB4DC` on the block; attached comment with full session id + URL |
+| Google Sheets | `:Provenance` companion column, cell value `ai-suggestion:unverified <YYYY-MM-DD> <short-id>`; touched cells highlighted `#e3dfec` |
+| Google Docs | literal `<!-- ai-suggestion:unverified -->` above the block; `#e3dfec` on the block; attached comment with full session id + URL |
 | Slack / messages | prefix `<!-- ai-suggestion:unverified -->`; short-id in line |
-| Notion / Coda / rich text | `<!-- ai-suggestion:unverified -->` prefix; `#FEB4DC` if available |
+| Notion / Coda / rich text | `<!-- ai-suggestion:unverified -->` prefix; `#e3dfec` if available |
 
-- **Highlight:** `#FEB4DC` (pink) = AI, not yet verified. Removed when status → `verified` (no color = human-trusted). Pink is canonical; legacy green `#4dff4d` is read by the transition parser and rewritten to pink.
+- **Highlight:** `#e3dfec` (light purple) = AI, not yet verified. Removed when status → `verified` (no color = human-trusted). Light purple is canonical; legacy colors (green `#4dff4d`, pink `#feb4dc`) are read by the transition parser and rewritten to it.
 - **Session id:** full 36-char UUID in files; first-8 short-id on Docs/Slack/Sheets.
 
 ---
 
 ## 6. Verifying (the flip)
-- Frontmatter / inline / code: `ai-suggestion:unverified` → `ai-suggestion:verified <name> <YYYY-MM-DD>`; remove the `#FEB4DC` highlight.
+- Frontmatter / inline / code: `ai-suggestion:unverified` → `ai-suggestion:verified <name> <YYYY-MM-DD>`; remove the `#e3dfec` highlight.
 - Sheets `:Provenance` cell: → `ai-processed:verified <name> <YYYY-MM-DD>`.
 - Docs: → `<!-- ...:verified -->`, resolve the comment, drop the highlight.
 - The `type` is never touched in a flip — only the status.
@@ -127,7 +128,7 @@ Trust signals are *consumed, not built* — stars, citations, clearances, valida
 The reference validator accepts, and maps to canonical, all of:
 - Old global colon form: `ai:suggestion` → `ai-suggestion:unverified`; `ai:processed` → `ai-processed:unverified`; `ai:verified` → `ai-*:verified` (type inferred from context, else `ai-processed`).
 - Status-suffixed hyphen form `ai-suggestion:unverified` — already canonical.
-- Legacy green highlight `#4dff4d` → pink `#FEB4DC`.
+- Legacy highlights (green `#4dff4d`, pink `#feb4dc`) → light purple `#e3dfec`.
 - Pre-2026-04-12 unmarked files → treated as `ai-suggestion:unverified` unless clearly human.
 
 A mass rewrite is **not** required; the dual-format parser lets old and new coexist until files are touched naturally.
