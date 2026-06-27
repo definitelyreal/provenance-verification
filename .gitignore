@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.bak
+
+# personal / not for publication
+private/
+claude/user.local.md

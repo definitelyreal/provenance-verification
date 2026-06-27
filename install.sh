@@ -1,0 +1,84 @@
+#!/bin/bash
+# provenance-verification installer.
+#   bash install.sh             # install: add @import, register hooks, seed user.local
+#   bash install.sh --update    # git pull --ff-only, then re-register hooks
+#   bash install.sh --uninstall # remove the @import line (hooks left for manual removal)
+# MIT.
+set -uo pipefail
+
+SRC="${BASH_SOURCE[0]}"; PV_HOME="$(cd "$(dirname "$SRC")" && pwd)"
+CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
+CLAUDE_MD="$CLAUDE_HOME/CLAUDE.md"
+SETTINGS="$CLAUDE_HOME/settings.json"
+RULES="$PV_HOME/claude/RULES.md"
+IMPORT_LINE="@$RULES"
+MODE="${1:-install}"
+
+ensure_import() {
+  mkdir -p "$CLAUDE_HOME"; touch "$CLAUDE_MD"
+  if grep -qF "$IMPORT_LINE" "$CLAUDE_MD"; then
+    echo "• @import already present in $CLAUDE_MD"
+  else
+    printf '\n# provenance-verification (managed import)\n%s\n' "$IMPORT_LINE" >> "$CLAUDE_MD"
+    echo "• added @import to $CLAUDE_MD"
+  fi
+}
+
+seed_user_cfg() {
+  local ex="$PV_HOME/claude/user.local.example.md" dst="$PV_HOME/claude/user.local.md"
+  if [ ! -f "$dst" ]; then cp "$ex" "$dst"; echo "• seeded $dst (fill it in — it is gitignored)"
+  else echo "• user.local.md already exists, left as-is"; fi
+}
+
+register_hooks() {
+  python3 - "$SETTINGS" "$PV_HOME" <<'PY'
+import json, sys, os
+settings_path, pv = sys.argv[1], sys.argv[2]
+os.makedirs(os.path.dirname(settings_path), exist_ok=True)
+try:
+    s = json.load(open(settings_path))
+except Exception:
+    s = {}
+hooks = s.setdefault("hooks", {})
+def add(event, matcher, cmd):
+    arr = hooks.setdefault(event, [])
+    for grp in arr:
+        if matcher is not None and grp.get("matcher") != matcher:
+            continue
+        if matcher is None and grp.get("matcher") not in (None, ""):
+            continue
+        for h in grp.get("hooks", []):
+            if h.get("command") == cmd:
+                return
+        grp.setdefault("hooks", []).append({"type": "command", "command": cmd})
+        return
+    grp = {"hooks": [{"type": "command", "command": cmd}]}
+    if matcher is not None:
+        grp["matcher"] = matcher
+    arr.append(grp)
+add("PostToolUse", "Write", f'bash "{pv}/reference/hooks/provenance-marker-check.sh"')
+add("PostToolUse", None,    f'bash "{pv}/reference/hooks/provenance-surface-check.sh"')
+add("SessionStart", None,   f'bash "{pv}/reference/hooks/provenance-update-check.sh"')
+json.dump(s, open(settings_path, "w"), indent=2)
+print(f"• registered hooks in {settings_path}")
+PY
+}
+
+case "$MODE" in
+  install)
+    ensure_import; seed_user_cfg; register_hooks
+    echo "✓ provenance-verification installed. Restart Claude Code sessions to load."
+    ;;
+  --update)
+    git -C "$PV_HOME" pull --ff-only 2>/dev/null && echo "✓ pulled latest" || echo "• no upstream to pull (set a remote first)"
+    register_hooks
+    ;;
+  --uninstall)
+    if [ -f "$CLAUDE_MD" ]; then
+      grep -vF "$IMPORT_LINE" "$CLAUDE_MD" | grep -vF "# provenance-verification (managed import)" > "$CLAUDE_MD.pv.tmp" && mv "$CLAUDE_MD.pv.tmp" "$CLAUDE_MD"
+      echo "• removed @import from $CLAUDE_MD"
+    fi
+    echo "• hooks left in $SETTINGS — remove the provenance-verification entries manually if desired."
+    ;;
+  *) echo "usage: install.sh [install|--update|--uninstall]"; exit 1 ;;
+esac
