@@ -36,7 +36,7 @@ PY
 MATCH=0
 IFS=',' read -ra G <<< "$GLOBS"
 for g in "${G[@]}"; do
-  g="$(printf '%s' "$g" | tr -d " \"'")"; g="${g/#\~/$HOME}"; [ -z "$g" ] && continue
+  g="$(printf '%s' "$g" | sed -e 's/^[[:space:]"]*//' -e 's/[[:space:]"]*$//')"; g="${g/#\~/$HOME}"; [ -z "$g" ] && continue
   pre="${g%%\**}"   # literal prefix before first wildcard
   case "$FILE_PATH" in "$pre"*) MATCH=1; break ;; esac
 done
