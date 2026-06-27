@@ -5,3 +5,7 @@ node_modules/
 # personal / not for publication
 private/
 claude/user.local.md
+skills/*/backups/
+skills/*/inventory.json
+skills/*/scan.json
+.review-scratch/

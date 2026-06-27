@@ -84,14 +84,22 @@ PY
   done
 }
 
+install_skills() {
+  local sdir="$CLAUDE_HOME/skills"; mkdir -p "$sdir"
+  for d in "$PV_HOME"/skills/*/; do
+    [ -d "$d" ] || continue
+    ln -sfn "$d" "$sdir/$(basename "$d")" && echo "- linked skill $(basename "$d")"
+  done
+}
+
 case "$MODE" in
   install)
-    ensure_import; seed_user_cfg; register_hooks; wire_engine_blocks
+    ensure_import; seed_user_cfg; register_hooks; wire_engine_blocks; install_skills
     echo "✓ provenance-verification installed (Claude + Codex + Gemini). Restart sessions to load."
     ;;
   --update)
     git -C "$PV_HOME" pull --ff-only 2>/dev/null && echo "✓ pulled latest" || echo "• no upstream to pull (set a remote first)"
-    register_hooks; wire_engine_blocks
+    register_hooks; wire_engine_blocks; install_skills
     ;;
   --uninstall)
     if [ -f "$CLAUDE_MD" ]; then

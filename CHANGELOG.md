@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 — 2026-06-27
+- backfill-provenance skill (v1 preview): `history_scan.py` (Claude Write/Edit scanner, session-attributed), `inventory.py` (conservative `ai-suggestion:unverified` classification, skips already-marked), `apply.py` (dry-run default, backup + restorable manifest, `--restore`). Proven: scan finds session-attributed events; apply+restore round-trips.
+- Installer now symlinks skills into `~/.claude/skills/`.
+- `DESIGN.md` hardened by a 3-round adversarial review (2 Opus + 2 Codex): report-primary value prop, + Bash-heredoc & `file-history @vN` channels, strict `tool_use_id` success-join, inversion / two-signal gate — the v2 spec.
+
+
 ## 0.3.0 — 2026-06-27
 - Canonical highlight now light purple `#e3dfec` (legacy green `#4dff4d` + pink `#feb4dc` still parsed).
 - Cross-engine: installer wires Codex (`AGENTS.md`) and Gemini (`GEMINI.md`), not just Claude; RULES is engine-agnostic.
