@@ -1,6 +1,9 @@
 node_modules/
 .DS_Store
 *.bak
+__pycache__/
+*.pyc
+build/
 
 # personal / not for publication
 private/
