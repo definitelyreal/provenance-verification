@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
 # backfill-provenance v2 / report.py
-# The PRIMARY deliverable (DESIGN §8.2): a tiered inventory of un-provenanced AI artifacts
+# The PRIMARY deliverable (DESIGN.history §8.2): a tiered inventory of un-provenanced AI artifacts
 # with recovered evidence. Marking is the rare hard-gated subset. Enforces the reconciliation
 # invariant (§10): a non-balancing run is a BLOCKER, never a warning.
 
@@ -18,7 +18,7 @@ def build_report(classifications, coverage):
     by_class = Counter(c["klass"] for c in classifications)
     dropped = [c for c in classifications if c["action"] not in ("mark", "report-only", "leave-alone")]
 
-    # Reconciliation (DESIGN §10): every scanned path must land in exactly one bucket.
+    # Reconciliation (DESIGN.history §10): every scanned path must land in exactly one bucket.
     mark = by_action.get("mark", 0)
     report_only = by_action.get("report-only", 0)
     leave = by_action.get("leave-alone", 0)

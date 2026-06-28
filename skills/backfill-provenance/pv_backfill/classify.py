@@ -5,13 +5,13 @@
 # model: mark on ORIGIN (an AI creation event), biased toward recall. high confidence when
 # current bytes still match what AI wrote, medium when AI created the file but it changed
 # since. git + file-history raise confidence, they do NOT gate. Mixed (AI edited a human
-# file) -> report-only. (Supersedes DESIGN §2.6's inversion gate; see IMPLEMENTATION_NOTES.md.)
+# file) -> report-only. (Supersedes DESIGN.history §2.6's inversion gate; see IMPLEMENTATION_NOTES.md.)
 
 import os
 import time
 import calendar
 
-# Human-legible labels for every abstention/decision class (DESIGN §8.3; machine names
+# Human-legible labels for every abstention/decision class (DESIGN.history §8.3; machine names
 # stay in the appendix only).
 PLAIN = {
     "edit_chain_missing_base": "Could see edits but not the original file to rebuild it from.",
@@ -72,7 +72,7 @@ def in_vcs(path):
 
 
 def workspace_of(path):
-    """Nearest ancestor that looks like a project root, for report grouping (DESIGN §8.4)."""
+    """Nearest ancestor that looks like a project root, for report grouping (DESIGN.history §8.4)."""
     markers = (".git", "package.json", "pyproject.toml", ".planning", "SKILL.md", ".claude")
     d = os.path.dirname(os.path.abspath(path))
     best = d

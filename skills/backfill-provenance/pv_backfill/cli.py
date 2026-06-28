@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
 # backfill-provenance v2 / cli.py
-# Phased orchestrator (DESIGN §8.1): pre-flight -> scan/graph -> classify -> report
+# Phased orchestrator (DESIGN.history §8.1): pre-flight -> scan/graph -> classify -> report
 # -> (opt-in) mark. Report-primary, dry-run by default. Checkpoints to state.json so a
 # stopped run resumes at marking without re-mining. Run as a module:
 #   python3 -m pv_backfill.cli <command> ...
@@ -30,7 +30,7 @@ def _norm_roots(roots):
 
 def cmd_preflight(a):
     groups = adapters.discover_logs()
-    print("PRE-FLIGHT source enumeration (DESIGN §8.1):")
+    print("PRE-FLIGHT source enumeration (DESIGN.history §8.1):")
     total = 0
     for k, v in groups.items():
         print(f"  {k:24s} {len(v)} logs")

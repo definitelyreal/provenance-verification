@@ -2,7 +2,7 @@
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
 # backfill-provenance v2 / mark.py
 # Safety primitives + the only code that mutates files. Backups live OUTSIDE the synced
-# tree (DESIGN §7.2). Dropbox placeholders are never read as empty / never auto-hydrated
+# tree (DESIGN.history §7.2). Dropbox placeholders are never read as empty / never auto-hydrated
 # (§6). Secrets are quarantined by glob AND content before any byte/hash is persisted (§7.1).
 # Marker insertion is structural per-language, detect-only idempotent (§7.3). Restore + unmark
 # go through the same backup path (§4, §7.6). DRY-RUN by default. Never writes `verified`.
@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "lib"))
 import provenance  # vendored grammar
 
 BACKUP_ROOT = os.path.expanduser("~/Library/Application Support/trust-kernel/backfill")
-MARKER_STATE = "ai-origin:backfilled"   # DESIGN §4 / open-q #1 — the ONE place it's defined
+MARKER_STATE = "ai-origin:backfilled"   # DESIGN.history §4 / open-q #1 — the ONE place it's defined
 
 QUARANTINE_GLOBS = [
     ".env*", "*.pem", "*.key", "*_key", "*secret*", "*token*", "*credential*",
@@ -42,7 +42,7 @@ CODE_EXT = {".py", ".js", ".ts", ".tsx", ".jsx", ".sh", ".rb", ".go", ".rs", ".j
             ".c", ".cpp", ".h", ".css", ".scss", ".sql", ".yaml", ".yml", ".toml"}
 
 
-# --- Dropbox placeholder guard (DESIGN §6) --------------------------------
+# --- Dropbox placeholder guard (DESIGN.history §6) --------------------------------
 def is_placeholder(path):
     try:
         out = subprocess.run(["xattr", path], capture_output=True, text=True, timeout=5)
@@ -81,7 +81,7 @@ def snap_bytes(snapshot_file, max_bytes=8 * 1024 * 1024):
         return None
 
 
-# --- secret quarantine (DESIGN §7.1) --------------------------------------
+# --- secret quarantine (DESIGN.history §7.1) --------------------------------------
 def _shannon(s):
     if not s:
         return 0.0
@@ -118,7 +118,7 @@ def quarantined_by_content(data):
     return False
 
 
-# --- marker rendering + structural insertion (DESIGN §5, §7.3) ------------
+# --- marker rendering + structural insertion (DESIGN.history §5, §7.3) ------------
 def medium_of(path):
     ext = os.path.splitext(path)[1].lower()
     if ext == ".md":
@@ -160,7 +160,7 @@ def insert_marker(text, marker, medium):
     return marker + "\n" + text
 
 
-# --- mutation with backup + verify (DESIGN §7.2, §7.5, §7.6) --------------
+# --- mutation with backup + verify (DESIGN.history §7.2, §7.5, §7.6) --------------
 def _bak_name(path):
     return hashlib.sha256(path.encode()).hexdigest() + os.path.splitext(path)[1]
 
@@ -187,7 +187,7 @@ def apply_markers(decisions, backfill_session, do_write, run_id=None):
     """decisions: list of classification dicts with action=='mark' chosen for application.
     Returns (manifest, counts). do_write False => dry-run (no bytes touched)."""
     # run_id carries a random suffix so a second apply in the same second can never overwrite
-    # a prior run's backups/manifest (DESIGN §7.2).
+    # a prior run's backups/manifest (DESIGN.history §7.2).
     run_id = run_id or (datetime.datetime.now().strftime("%Y%m%dT%H%M%S") + "-" + secrets.token_hex(3))
     run_dir = os.path.join(BACKUP_ROOT, run_id)
     if do_write and os.path.exists(os.path.join(run_dir, "changes.jsonl")):
@@ -222,7 +222,7 @@ def apply_markers(decisions, backfill_session, do_write, run_id=None):
         if provenance.is_marked(text):
             bump("already-marked"); continue
 
-        cur_sha = hashlib.sha256(data).hexdigest()   # bytes EXCLUDING marker (DESIGN §5.5)
+        cur_sha = hashlib.sha256(data).hexdigest()   # bytes EXCLUDING marker (DESIGN.history §5.5)
         expected = d.get("content_sha")              # report-time disk sha (write-race guard)
         if expected and cur_sha != expected:
             bump("changed-since-classify"); continue
@@ -309,7 +309,7 @@ def restore(run_id):
 
 def unmark(path, backfill_session, do_write):
     """Remove exactly the one backfill marker (structural, never substring). Same backup
-    path; records to audit (DESIGN §4)."""
+    path; records to audit (DESIGN.history §4)."""
     data = read_bytes(path)
     if data is None:
         print(f"unreadable: {path}"); return 1

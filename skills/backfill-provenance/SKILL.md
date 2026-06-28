@@ -16,10 +16,10 @@ description: Retroactively mark provenance across existing files by reconstructi
 
 **The primary output is a report** — an inventory of AI-origin artifacts with the evidence
 recovered for each. **Marking is the gated subset** — AI-origin files only; mixed/edited files
-stay report-only for a human to mark. Marking is a recall-biased quarantine (`IMPLEMENTATION_NOTES.md`
-explains the model; `KNOWN_LIMITATIONS.md` is the honest status). `DESIGN.md` is the original
-adversarially-hardened spec and is kept for the record, but its §2.6 two-signal/inversion gate
-was **superseded** by the v0.6 quarantine model — read DESIGN as history, not current behavior.
+stay report-only for a human to mark. Marking is a recall-biased quarantine. `DESIGN.md` is the
+current design; `IMPLEMENTATION_NOTES.md` explains *why the model changed*; `KNOWN_LIMITATIONS.md`
+is the honest status; `DESIGN.history.md` is the original pre-build design + adversarial record
+(its two-signal/inversion gate was superseded — read it as history).
 
 Reconstruct *what AI did* from chat history, classify, show the user, then mark only the
 provable subset — reversibly, dry-run by default.

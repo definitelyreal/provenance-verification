@@ -1,8 +1,8 @@
 <!-- ai-processed:unverified | session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 | date:2026-06-28 -->
-# backfill-provenance v2 — implementation notes & evidence-backed deviations from DESIGN.md
+# backfill-provenance v2 — implementation notes & evidence-backed deviations from the original design
 
-> **v0.6 model update (supersedes DESIGN §2.6's gate philosophy).** A 3-round adversarial
-> review showed DESIGN's precision-first gate optimized the wrong asymmetry. The marker
+> **v0.6 model update (supersedes the original design's §2.6 gate philosophy, now in `DESIGN.history.md`).**
+> A 3-round adversarial review showed that precision-first gate optimized the wrong asymmetry. The marker
 > `ai-origin:backfilled` is an **unverified, reversible quarantine flag**, so the tool should
 > be **recall-biased**: over-flagging a human file is a cheap, reversible false positive, while
 > MISSING an AI file (it then reads as human-trusted) is the expensive error. v0.6 therefore
@@ -12,13 +12,13 @@
 > not authorship precision — see `KNOWN_LIMITATIONS.md`. Deviation 1 below still stands;
 > Deviation 2 was retracted in v0.5.1 and is moot under this model.
 
-`DESIGN.md` is the original spec. While verifying its disk-fact ledger against this machine
-before writing parsers (Claim=Evidence), two findings **refined** the evidence model. They are
+`DESIGN.history.md` is the original spec. While verifying its disk-fact ledger against this
+machine before writing parsers (Claim=Evidence), two findings **refined** the evidence model. They are
 recorded here so the divergence is auditable, not silent.
 
 ## Deviation 1 — `file-history @vN` snapshots are PATH-attributed BASE states, not opaque content-hash AI-origin signals
 
-DESIGN §2.1 / §2.4 say the `<hash>@vN` snapshot file name is "an opaque content hash,
+DESIGN.history §2.1 / §2.4 say the `<hash>@vN` snapshot file name is "an opaque content hash,
 not a path … attribution is content-hash-match only," and that a snapshot hash-match to
 disk "**is** hash-continuity (§2.4) … the primary mechanism that lets the skill mark
 Edit-heavy … files." Verified on disk, both halves are wrong in a way that matters:
@@ -36,14 +36,14 @@ Edit-heavy … files." Verified on disk, both halves are wrong in a way that mat
   snapshot to its real path via the log, not by guessing from a content hash.
 - **A snapshot does NOT prove AI authorship.** file-history is Claude Code's pre-edit undo
   store: `@vN` is the state captured as the *base* before a tracked change. `CLAUDE.md`
-  (the named human-authored trap, DESIGN §2.4a) has snapshots — they are human content.
+  (the named human-authored trap, DESIGN.history §2.4a) has snapshots — they are human content.
   Treating "disk == some snapshot" as AI-origin would launder exactly the trap the spine
   exists to protect. PROOF: `CLAUDE.md @v1` sha `c4a2fb76…` (33,759 B) ≠ on-disk
   `50c0d9f4…` (35,896 B) — the snapshot is an older state, and its *content* is the human
   file, not an AI creation.
 
 **v2 role for file-history (corrected):** a path-attributed **recoverable base-state and
-content-continuity store** (DESIGN §2.4b base-source #2) and a **path-touch / second-signal
+content-continuity store** (DESIGN.history §2.4b base-source #2) and a **path-touch / second-signal
 corroborator** (§2.6) — never, by itself, an origin signal. **AI-origin always requires a
 creation event with a literal body** (`Write` / Codex `Add File` / static quoted-delimiter
 heredoc) at the root of the matched chain. A chain rooted in a snapshot/human base routes to
@@ -67,7 +67,7 @@ git/file-history only raise confidence).
 Deviation 1 (file-history is a path-attributed *base/continuity* store, not an origin
 signal) stands and is in fact the correct framing — Deviation 2 was the inconsistent half.
 
-## Status vs DESIGN.md (what is and isn't implemented)
+## Status vs the original design (what is and isn't implemented)
 Implemented: strict `tool_use_id`/`call_id` success-join (§2.2, with the known bugs in
 `KNOWN_LIMITATIONS.md`); creation + replay-to-disk as the positive gate (§2.4a, no fragment
 matching); narrow Bash-heredoc eligibility (§2.1); Codex nested/flat-legacy/archived adapters

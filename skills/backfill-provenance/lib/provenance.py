@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
-# VENDORED grammar for backfill-provenance v2 (DESIGN.md §0: "vendor, don't gate").
+# VENDORED grammar for backfill-provenance v2 (DESIGN.history.md §0: "vendor, don't gate").
 # This is reference/provenance.py + a GRAMMAR_VERSION + recognition of the backfill-only
-# `ai-origin:backfilled` state (DESIGN §4, open-q #1). It is the ONE place the backfill
+# `ai-origin:backfilled` state (DESIGN.history §4, open-q #1). It is the ONE place the backfill
 # skill recognizes / renders markers, so detection can never drift from the recognizer.
 # Stdlib only. Canonical form: <type>:<status>  e.g. ai-suggestion:unverified
 #
 # GRAMMAR_VERSION bumps whenever the recognized vocabulary or emission shape changes,
 # so two tools can never write markers claiming the same version with different semantics
-# (DESIGN §0 grammar-drift guard checks a sha of this module against any trust-kernel copy).
+# (DESIGN.history §0 grammar-drift guard checks a sha of this module against any trust-kernel copy).
 
 import hashlib
 import os
@@ -19,7 +19,7 @@ GRAMMAR_VERSION = "2.0.0-backfill"
 
 # --- canonical vocabulary -------------------------------------------------
 # `ai-origin` is a backfill-only TYPE: it asserts "AI authored these bytes per recovered
-# evidence" and is creation-only (DESIGN §4). It is intentionally distinct from
+# evidence" and is creation-only (DESIGN.history §4). It is intentionally distinct from
 # `ai-suggestion`/`ai-processed`, and from `:unverified` (which would imply "no human has
 # confirmed" — a claim backfill cannot make about a read/endorse).
 TYPES = ("ai-origin", "ai-suggestion", "ai-processed", "human")
@@ -88,7 +88,7 @@ def normalize(marker: str) -> str:
 
 
 def grammar_sha() -> str:
-    """sha256 of this module's source — the DESIGN §0 drift check compares this against any
+    """sha256 of this module's source — the DESIGN.history §0 drift check compares this against any
     other copy (trust-kernel) claiming the same GRAMMAR_VERSION."""
     try:
         with open(os.path.abspath(__file__), "rb") as f:

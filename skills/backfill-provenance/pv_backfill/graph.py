@@ -2,8 +2,8 @@
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
 # backfill-provenance v2 / graph.py
 # Content-state reconstruction + the sole positive gate: hash-continuity of a WHOLE-FILE
-# byte stream reconstructed from a creation event (DESIGN §2.4a — never a fragment match).
-# Replay is per-source-ordered within ONE session only (DESIGN §2.3: timestamps order
+# byte stream reconstructed from a creation event (DESIGN.history §2.4a — never a fragment match).
+# Replay is per-source-ordered within ONE session only (DESIGN.history §2.3: timestamps order
 # events only within a single source). Cross-session edit chains cannot be reliably ordered
 # in a treeless tree -> abstain. file-history snapshots are bases / second-signal corroborators,
 # never origin (IMPLEMENTATION_NOTES.md deviation 1). Stdlib only.
@@ -40,7 +40,7 @@ def apply_edit(text, old, new, replace_all=False):
 
 
 def apply_multiedit(text, edits):
-    """Atomic ordered chain (DESIGN §5.2): any sub-edit miss fails the whole chain."""
+    """Atomic ordered chain (DESIGN.history §5.2): any sub-edit miss fails the whole chain."""
     for e in edits:
         text = apply_edit(text, e.get("old", ""), e.get("new", ""), e.get("replace_all", False))
     return text

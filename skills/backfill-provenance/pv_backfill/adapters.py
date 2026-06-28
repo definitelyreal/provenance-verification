@@ -2,8 +2,8 @@
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
 # backfill-provenance v2 / adapters.py
 # Discover AI history logs, prefix-sniff each against a known adapter, and parse into
-# normalized touch EVENTS with a STRICT tool_use_id / call_id success-join (DESIGN §2.2:
-# failed writes are excluded). Also builds the file-history snapshot index (DESIGN §2.1,
+# normalized touch EVENTS with a STRICT tool_use_id / call_id success-join (DESIGN.history §2.2:
+# failed writes are excluded). Also builds the file-history snapshot index (DESIGN.history §2.1,
 # corrected per IMPLEMENTATION_NOTES.md: snapshots are PATH-attributed base states, not
 # opaque content hashes). Read-only. Stdlib only.
 
@@ -46,7 +46,7 @@ def _abspath(p, cwd):
 
 
 # ---------------------------------------------------------------------------
-# Bash command analysis — narrow heredoc eligibility (DESIGN §2.1)
+# Bash command analysis — narrow heredoc eligibility (DESIGN.history §2.1)
 # ---------------------------------------------------------------------------
 # Exactly one `cat > PATH <<'DELIM' ... DELIM` with a QUOTED delimiter (no shell
 # expansion), a literal target path, no loop/subshell/sudo/xargs/pipe wrapping. A leading
@@ -91,7 +91,7 @@ def analyze_bash(cmd):
         if not p.startswith("/dev/") and "heredoc" not in p:
             out.append(("indirect", {"path": p, "local_cwd": local_cwd,
                                      "reason": "indirect_write", "tool": "Bash-redirect"}))
-    # mv / cp of path-ish args -> evidence-propagating edges (DESIGN §3.4)
+    # mv / cp of path-ish args -> evidence-propagating edges (DESIGN.history §3.4)
     for verb, kind in (("mv", "move"), ("cp", "copy")):
         for rm in re.finditer(rf"(?:^|\n|;|&&)\s*{verb}\s+(?P<a>[^\s;&|]+)\s+(?P<b>[^\s;&|]+)", cmd):
             a, b = rm.group("a").strip("'\""), rm.group("b").strip("'\"")
@@ -151,7 +151,7 @@ def _iter_jsonl(path):
 def parse_claude_log(path, cov):
     """Parse one Claude projects/subagent JSONL. Returns list of events.
     Strict success-join: a tool_use is emitted with success only when its tool_result
-    (matched by tool_use_id) is present and not is_error (DESIGN §2.2)."""
+    (matched by tool_use_id) is present and not is_error (DESIGN.history §2.2)."""
     session = os.path.basename(path)[:-6]  # strip .jsonl
     # subagent files are agent-*.jsonl under <parent>/subagents/
     if session.startswith("agent-"):
@@ -326,7 +326,7 @@ def parse_codex_nested(path, cov):
 
 
 def parse_codex_flat_legacy(path, cov):
-    """Single pretty-printed JSON document {session, items} (DESIGN §3.2). Whole-doc read;
+    """Single pretty-printed JSON document {session, items} (DESIGN.history §3.2). Whole-doc read;
     exempt from per-line corruption budget."""
     try:
         with open(path, errors="ignore") as f:
@@ -349,7 +349,7 @@ def parse_codex_flat_legacy(path, cov):
 
 
 # ---------------------------------------------------------------------------
-# file-history index (DESIGN §2.1, corrected per IMPLEMENTATION_NOTES.md)
+# file-history index (DESIGN.history §2.1, corrected per IMPLEMENTATION_NOTES.md)
 # ---------------------------------------------------------------------------
 def build_filehistory_index(cov):
     """Map abs_path -> [snapshot records]. Path attribution comes from trackedFileBackups
@@ -394,7 +394,7 @@ def build_filehistory_index(cov):
 # Discovery + orchestration
 # ---------------------------------------------------------------------------
 def discover_logs():
-    """Enumerate every candidate log, classified by adapter (DESIGN §8.1 pre-flight)."""
+    """Enumerate every candidate log, classified by adapter (DESIGN.history §8.1 pre-flight)."""
     groups = {
         "claude:projects": sorted(glob.glob(os.path.join(CLAUDE_PROJECTS, "*", "*.jsonl"))),
         "claude:subagents": sorted(glob.glob(os.path.join(CLAUDE_PROJECTS, "*", "*", "subagents", "*.jsonl"))),
@@ -415,7 +415,7 @@ def _under_roots(path, roots):
 def scan_all(roots=None, cov=None, progress=None):
     """Run every adapter, returning (events_filtered_to_roots, fh_index, coverage).
     roots: list of abs path prefixes to keep events for (None = all). Logs are still fully
-    parsed so cross-project logs can attribute in-scope files (DESIGN §3.3)."""
+    parsed so cross-project logs can attribute in-scope files (DESIGN.history §3.3)."""
     cov = cov if cov is not None else {}
     roots = [os.path.abspath(os.path.expanduser(r)) for r in roots] if roots else None
     groups = discover_logs()
