@@ -45,12 +45,31 @@ def build_report(classifications, coverage):
     }
 
 
+# Sources DESIGN names but the v0.5.x engine does NOT mine (marked absent, never hidden).
+NOT_COVERED = [
+    "Gemini history (~/.gemini) — no adapter in v0.5.x",
+    "~/.codex memories / ambient-suggestions / computer-use — not audited (read-only suggestions, but coverage is NOT proven)",
+    "Google Sheets / Docs / Slack / Airtable / action-queue — designed, not wired",
+]
+
+
 def render_text(rep):
     L = []
     cov = rep.get("coverage", {})
     L.append("=" * 70)
-    L.append("backfill-provenance v2 — report (primary deliverable; marking is the subset)")
+    L.append("backfill-provenance v2 — REPORT (read-only inventory). Marking is FROZEN in v0.5.x.")
     L.append("=" * 70)
+    L.append("")
+    L.append("!! AUTO-MARKING IS DISABLED (KNOWN_LIMITATIONS.md). The rows below are an")
+    L.append("   ADVISORY inventory, not a list of files that will be marked. A 3-round")
+    L.append("   adversarial review found the mark gate can launder human content; the gate")
+    L.append("   is held until re-founded on git-history authorship (v0.6).")
+    L.append("")
+    L.append("CAVEATS (this report is provisional):")
+    L.append("  - Coverage is INCOMPLETE, not 'complete' — see NOT COVERED below.")
+    L.append("  - Reconciliation below is bucket balance only, NOT a proof every file was covered.")
+    L.append("  - 'marking candidate' rows are advisory: git/cwd attribution can be wrong, and")
+    L.append("    a content hash-match alone cannot prove a file is still human-untouched.")
     L.append("")
     L.append("COVERAGE (pre-flight):")
     for k, v in (cov.get("log_counts") or {}).items():
@@ -60,16 +79,15 @@ def render_text(rep):
     L.append(f"  file-history: {cov.get('fh_snapshots_indexed', 0)} snapshots, "
              f"{cov.get('fh_paths_attributed', 0)} paths attributed")
     if cov.get("unparseable"):
-        L.append(f"  UNPARSEABLE sources (NOT marked): {len(cov['unparseable'])}")
+        L.append(f"  UNPARSEABLE sources (NOT mined): {len(cov['unparseable'])}")
+    L.append("  NOT COVERED by v0.5.x (absent, not assumed-clean):")
+    for s in NOT_COVERED:
+        L.append(f"    - {s}")
     L.append("")
     L.append("EXECUTIVE SUMMARY:")
     L.append(f"  files scanned (with AI evidence in scope): {rep['scanned']}")
-    L.append(f"  auto-mark-eligible:                        {rep['mark']}")
-    L.append(f"  report-only (not eligible):                {rep['report_only']}")
-    L.append("")
-    L.append("  Realistic yield: only the auto-mark-eligible subset gets a marker. The rest")
-    L.append("  are report-only because this tree is largely non-git or lacks a recoverable")
-    L.append("  base — this is expected (DESIGN §1), not a failure.")
+    L.append(f"  marking candidates (NOT applied — frozen):  {rep['mark']}")
+    L.append(f"  report-only (not eligible even when unfrozen): {rep['report_only']}")
     L.append("")
     L.append("  report-only, by reason:")
     for klass, n in sorted(rep["by_class"].items(), key=lambda x: -x[1]):
@@ -77,18 +95,18 @@ def render_text(rep):
             continue
         L.append(f"    {n:5d}  {klass}")
     L.append("")
-    L.append(f"HIGHER-RISK mark decisions (non-git or multi-session): {rep['higher_risk_count']}"
-             "  — review individually before applying.")
+    L.append(f"  Of the {rep['mark']} candidates, {rep['higher_risk_count']} are higher-risk"
+             " (non-git or multi-session).")
     L.append("")
     L.append("BY WORKSPACE:")
     for ws, acts in sorted(rep["workspaces"].items()):
         L.append(f"  {ws}")
-        L.append(f"      mark={acts.get('mark',0)}  report-only={acts.get('report-only',0)}")
+        L.append(f"      candidate={acts.get('mark',0)}  report-only={acts.get('report-only',0)}")
     L.append("")
-    L.append("SAMPLE auto-mark-eligible:")
+    L.append("SAMPLE marking candidates (advisory only — NOT auto-marked in v0.5.x):")
     for c in [x for x in rep["classifications"] if x["action"] == "mark"][:10]:
         L.append(f"  [{'git' if c['vcs'] else 'non-git'}] {c['path']}")
         L.append(f"        why: {c['reason']}")
     L.append("")
-    L.append("balanced reconciliation: " + ("OK" if rep["balanced"] else "FAILED"))
+    L.append("bucket balance (not a coverage proof): " + ("OK" if rep["balanced"] else "FAILED"))
     return "\n".join(L)

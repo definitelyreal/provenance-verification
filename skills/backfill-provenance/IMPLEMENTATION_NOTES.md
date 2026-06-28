@@ -41,32 +41,36 @@ heredoc) at the root of the matched chain. A chain rooted in a snapshot/human ba
 `mixed_authorship` / report-only. This preserves the DESIGN's intent (recover Edit-heavy
 files) via *creation-body + replay-to-disk*, without the laundering risk.
 
-## Deviation 2 — second independent signal (§2.6) is grounded in file-history, consistent with Deviation 1
+## Deviation 2 — RETRACTED (the two-signal non-VCS gate was unsound)
 
-DESIGN §2.6 asks for two independent non-VCS signals: (i) a whole-file hash-match proving
-AI emitted the bytes, AND (ii) a corroborator. v2 implements:
+The original v0.5.0 version of this section claimed file-history could serve as a second
+*independent* signal: Signal A = a chat-log creation body matching disk, Signal B = a
+file-history snapshot of the same bytes. **A 3-round adversarial review (build/redteam/)
+proved this false and the claim is withdrawn.** file-history is Claude Code's *own pre-edit
+undo buffer*, emitted by the same engine and session as the write — Signal A and Signal B
+are two recordings of ONE operation, not two independent attestations. file-history also has
+no Codex equivalent. So the non-VCS two-signal gate does not provide independence, and it is
+**disabled** in v0.5.x along with all auto-marking (see `KNOWN_LIMITATIONS.md`). The only
+genuinely independent second signal identified is git-history authorship; re-founding the
+gate on it is deferred to v0.6.
 
-- **Signal A:** a §2.4 whole-file match — disk sha equals an AI **creation body** (direct),
-  or equals the result of replaying the AI edit chain **from a creation body** to disk.
-- **Signal B (independent store):** the same on-disk bytes are *independently* recorded in
-  `~/.claude/file-history` as a snapshot of that same path (sha match), i.e. a second,
-  separately-written store agrees the file currently holds AI-emitted bytes — **plus** an
-  mtime-in-session-window check with no later-gap that would suggest a post-AI human save.
+Deviation 1 (file-history is a path-attributed *base/continuity* store, not an origin
+signal) stands and is in fact the correct framing — Deviation 2 was the inconsistent half.
 
-Signal A is the chat-log attestation; Signal B is the file-history attestation. They are
-written by different subsystems, so agreement is genuinely two independent signals. One
-alone in a treeless Dropbox tree never auto-marks (DESIGN §2.6) → `non_git_single_signal`.
+## Status vs DESIGN.md (what is and isn't implemented)
+Implemented: strict `tool_use_id`/`call_id` success-join (§2.2, with the known bugs in
+`KNOWN_LIMITATIONS.md`); creation + replay-to-disk as the positive gate (§2.4a, no fragment
+matching); narrow Bash-heredoc eligibility (§2.1); Codex nested/flat-legacy/archived adapters
+(§3.2); subagent transcripts (§3.2); backups outside the synced tree + restore + unmark
+(§4, §7); Dropbox placeholder guard (§6); report-primary, dry-run default (§8.2);
+`ai-origin:backfilled` constant (§4, open-q #1).
 
-## Everything else implements DESIGN.md as written
-Strict `tool_use_id`/`call_id` success-join excluding `is_error:true` (§2.2); creation +
-replay-to-disk as the sole positive gate (§2.4a, no fragment matching); per-path content
-segments split on delete/recreate (§3.6); move/copy edges (§3.4); narrow Bash-heredoc
-eligibility (§2.1); Codex nested `{timestamp,type,payload}` + flat-legacy whole-document +
-archived adapters (§3.2); subagent transcripts as first-class (§3.2); abstention classes
-named + counted (§2 table); reconciliation balance is a BLOCKER (§10); backups outside the
-synced tree + restore + unmark (§4, §7); secret quarantine glob+content scan (§7.1);
-Dropbox placeholder guard (§6); dry-run default, report-primary (§8.2); `ai-origin:backfilled`
-creation-only marker (§4, open-q #1 — surfaced for confirmation, isolated as one constant).
+**NOT implemented / unsound — see `KNOWN_LIMITATIONS.md` for the full list:** §3.6
+delete/recreate segmentation (absent; an earlier draft wrongly claimed it was done), §3.4
+move/copy survival (parsed, not propagated), the §2.6 two-signal gate (unsound, disabled),
+§0 grammar-drift guard, §8.8 resume-shows-choices, §7.1 scan-before-hash ordering, §3.5
+append marker block, several named-but-never-emitted abstention classes, Gemini coverage,
+and the reconciliation BLOCKER (balance-only). Auto-marking is frozen until v0.6.
 
 ---
 _Claude · 2026-06-28 · Session: 6ab1c2ae-25dd-40bf-9ca2-05072ee58b83_

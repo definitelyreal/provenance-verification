@@ -93,7 +93,28 @@ def cmd_report(a):
     return 0
 
 
+MARKING_DISABLED_MSG = """\
+AUTO-MARKING IS DISABLED IN v0.5.x.
+
+A 3-round adversarial review (build/redteam/) showed the marking gate can launder
+human content: the "two independent signals" premise is false (file-history is the
+same engine's own pre-edit undo buffer, not an independent attestation), the git path
+trusts mere presence of an ancestor .git (gitignored/stray repos included), the
+apply-phase write-race guard is a no-op, and delete/recreate segmentation is not
+implemented. See KNOWN_LIMITATIONS.md.
+
+The REPORT is the deliverable for now. Marking is held until the gate is re-founded on a
+genuinely independent signal (git-history authorship) in a deliberate v0.6.
+To override for testing ONLY (unsafe, may mark human files): --experimental-unsafe-marking
+"""
+
+
 def cmd_apply(a):
+    if not getattr(a, "experimental_unsafe_marking", False):
+        print(MARKING_DISABLED_MSG)
+        return 0
+    print("!! --experimental-unsafe-marking: the gate is known-unsafe (KNOWN_LIMITATIONS.md) !!",
+          file=sys.stderr)
     st = _state_path(a.workdir)
     if not os.path.exists(st):
         print("no state.json — run `report` first.", file=sys.stderr)
@@ -149,6 +170,8 @@ def main(argv):
     p.add_argument("--workspace", default=None, help="only this workspace group")
     p.add_argument("--include-non-git", action="store_true")
     p.add_argument("--apply", action="store_true", help="write (default: dry-run)")
+    p.add_argument("--experimental-unsafe-marking", action="store_true",
+                   help="override the v0.5.x marking freeze (KNOWN-UNSAFE; may mark human files)")
     p.set_defaults(fn=cmd_apply)
     p = sub.add_parser("restore"); p.add_argument("run_id"); p.set_defaults(fn=cmd_restore)
     p = sub.add_parser("unmark")

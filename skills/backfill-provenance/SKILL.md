@@ -6,6 +6,12 @@ description: Retroactively mark provenance across existing files by reconstructi
 
 # backfill-provenance (v2)
 
+> **v0.5.x status: AUTO-MARKING IS FROZEN.** A 3-round adversarial review found the mark
+> gate can launder human content (the "two independent signals" premise is false; see
+> `KNOWN_LIMITATIONS.md`). Only the **report** runs; `apply` refuses to write unless the
+> known-unsafe `--experimental-unsafe-marking` flag is passed. Marking returns in v0.6 once
+> the gate is re-founded on git-history authorship. `restore`/`unmark` still work.
+
 **The primary output is a report** — an inventory of un-provenanced AI artifacts with the
 evidence recovered for each. **Marking is a small, hard-gated subset.** On a machine with
 almost no version control, a content hash-match cannot prove a file is still AI-untouched,
@@ -57,10 +63,9 @@ The engine is the `pv_backfill/` package; the vendored marker grammar is `lib/pr
    Confirm that, or switch the one constant `MARKER_STATE` in `pv_backfill/mark.py` to
    `ai-suggestion:unverified` if the user prefers the existing grammar. Surface it; don't decide it.
 
-7. **Apply, group-by-group, dry-run first** (git-only by default; non-git held back):
-   `PV_SESSION=<this-session> python3 -m pv_backfill.cli apply --workdir <BUILD_DIR>`   (dry-run)
-   add `--apply` to write; `--workspace <path>` to scope to one group; `--include-non-git`
-   to also apply the two-signal non-git marks. Each write run creates a backup + manifest.
+7. **Apply — FROZEN in v0.5.x.** `apply` prints the freeze notice and writes nothing. Do not
+   pass `--experimental-unsafe-marking` on real files; it is known-unsafe. When marking
+   returns in v0.6 it will require git-history authorship as the independent signal.
 
 8. **Report** what changed per group, and the restore / unmark commands:
    `python3 -m pv_backfill.cli restore <run-id>` · `python3 -m pv_backfill.cli unmark <path> [--apply]`

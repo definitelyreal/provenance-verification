@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 — 2026-06-28
+- **Marking frozen + honesty pass after a 3-round adversarial review** (2 Opus + 2 Codex per round; repros under `build/redteam/`). The review found the v0.5.0 mark gate could launder human content, so auto-marking is disabled; the **report** is the deliverable.
+  - `apply` refuses to write unless `--experimental-unsafe-marking` (known-unsafe) is passed.
+  - **Two-signal non-VCS gate retracted as unsound:** file-history is the same engine's own pre-edit undo buffer, not an independent attestation — Signal A and Signal B are one operation, and Codex has no file-history at all. IMPLEMENTATION_NOTES "deviation 2" withdrawn.
+  - Report now leads with caveats (coverage INCOMPLETE; reconciliation is bucket-balance only, not a coverage proof; candidate rows advisory) and an explicit **NOT COVERED** list (Gemini, `~/.codex` memories/ambient/computer-use, connected surfaces).
+  - New `KNOWN_LIMITATIONS.md` marks every absent feature as absent: §3.6 delete/recreate segmentation (was falsely claimed implemented — corrected), §3.4 move/copy survival, §0 grammar-drift guard, §8.8 resume-shows-choices, §7.1 scan-before-hash ordering, §3.5 append marker block, dead abstention classes, plus the confirmed apply-path bugs (write-race no-op, `in_vcs` over-trust, restore not fail-loud, symlink/hardlink write-through, secret-scan gaps, seconds-granular run_id, prose-vocabulary false `is_marked`).
+  - The honest verdict: re-found marking on git-history authorship (the one genuinely independent signal) in a deliberate v0.6; non-git and Codex stay report-only.
+
 ## 0.5.0 — 2026-06-28
 - **backfill-provenance v2** — implements the adversarially-hardened `DESIGN.md`. Report-primary (marking is a hard-gated subset). New `pv_backfill/` engine; v1 scripts (`history_scan.py`/`inventory.py`/`apply.py`) removed.
   - **Channels v1 missed:** narrow Bash heredocs (quoted-delim/literal-path/no-expansion only), `mv`/`cp` evidence edges, `~/.claude/file-history/@vN` snapshots, Codex `apply_patch` (Add full-body / Update replay) across nested + flat-legacy whole-doc + archived sessions, and subagent transcripts as first-class.
