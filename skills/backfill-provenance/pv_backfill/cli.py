@@ -93,28 +93,10 @@ def cmd_report(a):
     return 0
 
 
-MARKING_DISABLED_MSG = """\
-AUTO-MARKING IS DISABLED IN v0.5.x.
-
-A 3-round adversarial review (build/redteam/) showed the marking gate can launder
-human content: the "two independent signals" premise is false (file-history is the
-same engine's own pre-edit undo buffer, not an independent attestation), the git path
-trusts mere presence of an ancestor .git (gitignored/stray repos included), the
-apply-phase write-race guard is a no-op, and delete/recreate segmentation is not
-implemented. See KNOWN_LIMITATIONS.md.
-
-The REPORT is the deliverable for now. Marking is held until the gate is re-founded on a
-genuinely independent signal (git-history authorship) in a deliberate v0.6.
-To override for testing ONLY (unsafe, may mark human files): --experimental-unsafe-marking
-"""
+_CONF_RANK = {"high": 2, "medium": 1}
 
 
 def cmd_apply(a):
-    if not getattr(a, "experimental_unsafe_marking", False):
-        print(MARKING_DISABLED_MSG)
-        return 0
-    print("!! --experimental-unsafe-marking: the gate is known-unsafe (KNOWN_LIMITATIONS.md) !!",
-          file=sys.stderr)
     st = _state_path(a.workdir)
     if not os.path.exists(st):
         print("no state.json — run `report` first.", file=sys.stderr)
@@ -124,12 +106,14 @@ def cmd_apply(a):
     chosen = [c for c in cls if c["action"] == "mark"]
     if a.workspace:
         chosen = [c for c in chosen if c["workspace"] == a.workspace]
-    if not a.include_non_git:
-        held = [c for c in chosen if not c["vcs"]]
-        chosen = [c for c in chosen if c["vcs"]]
-        if held:
-            print(f"holding {len(held)} non-git mark candidates (pass --include-non-git to apply)",
-                  file=sys.stderr)
+    floor = _CONF_RANK.get(a.min_confidence, 2)
+    held = [c for c in chosen if _CONF_RANK.get(c.get("confidence"), 0) < floor]
+    chosen = [c for c in chosen if _CONF_RANK.get(c.get("confidence"), 0) >= floor]
+    if held:
+        print(f"holding {len(held)} candidates below --min-confidence={a.min_confidence} "
+              f"(raise coverage with --min-confidence medium)", file=sys.stderr)
+    print("NOTE: ai-origin:backfilled is an UNVERIFIED, reversible quarantine flag — it may be "
+          "wrong; a human clears or confirms it later.", file=sys.stderr)
     session = os.environ.get("PV_SESSION", "backfill-v2")
     manifest, counts, run_id = mark.apply_markers(chosen, session, do_write=a.apply)
     print("apply result:", counts, "" if a.apply else "(DRY-RUN — add --apply to write)")
@@ -168,10 +152,9 @@ def main(argv):
     p = sub.add_parser("apply")
     p.add_argument("--workdir", default=default_wd)
     p.add_argument("--workspace", default=None, help="only this workspace group")
-    p.add_argument("--include-non-git", action="store_true")
+    p.add_argument("--min-confidence", choices=("high", "medium"), default="high",
+                   help="mark only candidates at/above this confidence (default: high)")
     p.add_argument("--apply", action="store_true", help="write (default: dry-run)")
-    p.add_argument("--experimental-unsafe-marking", action="store_true",
-                   help="override the v0.5.x marking freeze (KNOWN-UNSAFE; may mark human files)")
     p.set_defaults(fn=cmd_apply)
     p = sub.add_parser("restore"); p.add_argument("run_id"); p.set_defaults(fn=cmd_restore)
     p = sub.add_parser("unmark")

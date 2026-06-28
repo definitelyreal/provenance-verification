@@ -1,11 +1,20 @@
 <!-- ai-processed:unverified | session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 | date:2026-06-28 -->
 # backfill-provenance v2 — implementation notes & evidence-backed deviations from DESIGN.md
 
-`DESIGN.md` is the source of truth. v2 implements it. While verifying the DESIGN's
-disk-fact ledger against this machine before writing parsers (Claim=Evidence), two
-findings **refined** the evidence model. Both make v2 *more* conservative than the
-DESIGN, never less — the right direction for a provenance tool. They are recorded here
-so the divergence is auditable, not silent.
+> **v0.6 model update (supersedes DESIGN §2.6's gate philosophy).** A 3-round adversarial
+> review showed DESIGN's precision-first gate optimized the wrong asymmetry. The marker
+> `ai-origin:backfilled` is an **unverified, reversible quarantine flag**, so the tool should
+> be **recall-biased**: over-flagging a human file is a cheap, reversible false positive, while
+> MISSING an AI file (it then reads as human-trusted) is the expensive error. v0.6 therefore
+> marks on **origin** (an AI creation event) at `high`/`medium` confidence; git + file-history
+> are confidence annotations, not gates. The old two-signal/inversion gate is gone. What makes
+> this safe is the **data-integrity safety net** (reversibility + never harming other files),
+> not authorship precision — see `KNOWN_LIMITATIONS.md`. Deviation 1 below still stands;
+> Deviation 2 was retracted in v0.5.1 and is moot under this model.
+
+`DESIGN.md` is the original spec. While verifying its disk-fact ledger against this machine
+before writing parsers (Claim=Evidence), two findings **refined** the evidence model. They are
+recorded here so the divergence is auditable, not silent.
 
 ## Deviation 1 — `file-history @vN` snapshots are PATH-attributed BASE states, not opaque content-hash AI-origin signals
 

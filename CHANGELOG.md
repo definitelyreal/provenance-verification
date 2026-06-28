@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.6.0 — 2026-06-28
+- **Re-founded marking as a recall-biased QUARANTINE and unfroze it.** The marker
+  `ai-origin:backfilled` is an unverified, reversible flag ("a human didn't write this"). The
+  v0.5.x freeze optimized the wrong asymmetry: over-flagging a human file is cheap (a human
+  clears it), while MISSING an AI file — it then reads as human-trusted — is the expensive error.
+  - **Gate is now on ORIGIN:** an AI creation event marks the file at `high` confidence (current
+    bytes still match what AI wrote) or `medium` (AI-created but changed since). git +
+    file-history *raise confidence*, they no longer gate. Mixed (human file AI edited) stays
+    report-only. On real data this raised recall from 24 to 47 markable files (41 high / 6 medium).
+  - `apply` works again, dry-run by default; marks `high` by default, `--min-confidence medium`
+    includes the rest.
+- **Data-integrity safety net (what makes generous, reversible marking safe), fixed + tested:**
+  write-race now real (report-time sha persisted in `state.json`, compared at apply); restore
+  fails loud on hash-mismatch or missing backup blob; symlinks (incl. via a parent dir) and
+  hardlinks are skipped, writes use `O_NOFOLLOW`; placeholder guard unconditional; secret files
+  skipped by glob + whole-file scan (JWT/prefix/secret-assignment, without over-quarantining
+  commit hashes/checksums); unique `run_id` + no manifest overwrite; `unmark` is structural
+  (own-line markers only); verify-after-write requires exactly one marker.
+- **Codex wrong-file fix:** relative `apply_patch` paths resolve against the cwd in effect at
+  that call (per-item), not the session's final cwd.
+- Report reframed to the quarantine model with confidence tiers; keeps the honest NOT-COVERED
+  list. `KNOWN_LIMITATIONS.md` and `IMPLEMENTATION_NOTES.md` updated; still-absent features
+  (§3.6 segmentation, §3.4 move-survival, grammar-drift guard, etc.) marked absent. 38/38 tests.
+
 ## 0.5.1 — 2026-06-28
 - **Marking frozen + honesty pass after a 3-round adversarial review** (2 Opus + 2 Codex per round; repros under `build/redteam/`). The review found the v0.5.0 mark gate could launder human content, so auto-marking is disabled; the **report** is the deliverable.
   - `apply` refuses to write unless `--experimental-unsafe-marking` (known-unsafe) is passed.

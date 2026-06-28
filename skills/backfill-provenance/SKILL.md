@@ -6,14 +6,17 @@ description: Retroactively mark provenance across existing files by reconstructi
 
 # backfill-provenance (v2)
 
-> **v0.5.x status: AUTO-MARKING IS FROZEN.** A 3-round adversarial review found the mark
-> gate can launder human content (the "two independent signals" premise is false; see
-> `KNOWN_LIMITATIONS.md`). Only the **report** runs; `apply` refuses to write unless the
-> known-unsafe `--experimental-unsafe-marking` flag is passed. Marking returns in v0.6 once
-> the gate is re-founded on git-history authorship. `restore`/`unmark` still work.
+> **v0.6 model: marking is a QUARANTINE, biased toward recall.** `ai-origin:backfilled` is
+> an UNVERIFIED, REVERSIBLE flag meaning "a human didn't write this," so AI output isn't
+> mistaken for human-verified truth. It is allowed to be wrong: over-flagging a human file is
+> cheap (a human clears it); the expensive error is MISSING an AI file. So the gate marks on
+> **origin** (AI created the file), at `high` (bytes still match) or `medium` (created by AI
+> but changed since) confidence. git + file-history raise confidence; they don't gate. A
+> 3-round adversarial review drove this design and the safety net below (see `KNOWN_LIMITATIONS.md`).
 
-**The primary output is a report** — an inventory of un-provenanced AI artifacts with the
-evidence recovered for each. **Marking is a small, hard-gated subset.** On a machine with
+**The primary output is a report** — an inventory of AI-origin artifacts with the evidence
+recovered for each. **Marking is the gated subset** (AI-origin only; mixed/edited files stay
+report-only for a human to mark). On a machine with
 almost no version control, a content hash-match cannot prove a file is still AI-untouched,
 so auto-marking is the exception, not the headline (see `DESIGN.md` — the authoritative,
 adversarially-hardened spec, and `IMPLEMENTATION_NOTES.md` — the two evidence-backed
@@ -63,9 +66,12 @@ The engine is the `pv_backfill/` package; the vendored marker grammar is `lib/pr
    Confirm that, or switch the one constant `MARKER_STATE` in `pv_backfill/mark.py` to
    `ai-suggestion:unverified` if the user prefers the existing grammar. Surface it; don't decide it.
 
-7. **Apply — FROZEN in v0.5.x.** `apply` prints the freeze notice and writes nothing. Do not
-   pass `--experimental-unsafe-marking` on real files; it is known-unsafe. When marking
-   returns in v0.6 it will require git-history authorship as the independent signal.
+7. **Apply, dry-run first** (marks `high` confidence by default; reversible):
+   `PV_SESSION=<this-session> python3 -m pv_backfill.cli apply --workdir <BUILD_DIR>`   (dry-run)
+   add `--apply` to write; `--min-confidence medium` to also mark AI-created-but-changed
+   files; `--workspace <path>` to scope to one group. Each write run creates a backup +
+   manifest outside the synced tree; symlinks/hardlinks/secret files/placeholders are skipped;
+   a file changed since the report is skipped (`changed-since-classify`).
 
 8. **Report** what changed per group, and the restore / unmark commands:
    `python3 -m pv_backfill.cli restore <run-id>` · `python3 -m pv_backfill.cli unmark <path> [--apply]`

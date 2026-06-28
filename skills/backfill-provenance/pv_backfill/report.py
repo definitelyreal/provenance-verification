@@ -32,22 +32,21 @@ def build_report(classifications, coverage):
     for c in classifications:
         by_ws[c["workspace"]][c["action"]].append(c)
 
-    higher_risk = [c for c in classifications
-                   if c["action"] == "mark" and (not c["vcs"] or len(c["sessions"]) > 1)]
+    by_conf = Counter(c.get("confidence") for c in classifications if c["action"] == "mark")
 
     return {
         "scanned": scanned, "mark": mark, "report_only": report_only, "leave": leave,
         "by_action": dict(by_action), "by_class": dict(by_class),
+        "conf_high": by_conf.get("high", 0), "conf_medium": by_conf.get("medium", 0),
         "balanced": balanced, "coverage": coverage,
         "workspaces": {ws: {a: len(v) for a, v in acts.items()} for ws, acts in by_ws.items()},
-        "higher_risk_count": len(higher_risk),
         "classifications": classifications,
     }
 
 
-# Sources DESIGN names but the v0.5.x engine does NOT mine (marked absent, never hidden).
+# Sources DESIGN names but the engine does NOT mine (marked absent, never hidden).
 NOT_COVERED = [
-    "Gemini history (~/.gemini) — no adapter in v0.5.x",
+    "Gemini history (~/.gemini) — no adapter yet",
     "~/.codex memories / ambient-suggestions / computer-use — not audited (read-only suggestions, but coverage is NOT proven)",
     "Google Sheets / Docs / Slack / Airtable / action-queue — designed, not wired",
 ]
@@ -57,19 +56,19 @@ def render_text(rep):
     L = []
     cov = rep.get("coverage", {})
     L.append("=" * 70)
-    L.append("backfill-provenance v2 — REPORT (read-only inventory). Marking is FROZEN in v0.5.x.")
+    L.append("backfill-provenance — provenance QUARANTINE report (AI-origin inventory)")
     L.append("=" * 70)
     L.append("")
-    L.append("!! AUTO-MARKING IS DISABLED (KNOWN_LIMITATIONS.md). The rows below are an")
-    L.append("   ADVISORY inventory, not a list of files that will be marked. A 3-round")
-    L.append("   adversarial review found the mark gate can launder human content; the gate")
-    L.append("   is held until re-founded on git-history authorship (v0.6).")
+    L.append("The marker `ai-origin:backfilled` is an UNVERIFIED, REVERSIBLE quarantine flag: it")
+    L.append("says 'a human did not write this file' so AI output isn't mistaken for human-")
+    L.append("verified truth. It can be wrong (over-flagging a human file is cheap; a human")
+    L.append("clears it). Marking is biased toward catching AI files, not toward precision.")
     L.append("")
-    L.append("CAVEATS (this report is provisional):")
-    L.append("  - Coverage is INCOMPLETE, not 'complete' — see NOT COVERED below.")
-    L.append("  - Reconciliation below is bucket balance only, NOT a proof every file was covered.")
-    L.append("  - 'marking candidate' rows are advisory: git/cwd attribution can be wrong, and")
-    L.append("    a content hash-match alone cannot prove a file is still human-untouched.")
+    L.append("CAVEATS:")
+    L.append("  - Coverage is INCOMPLETE — see NOT COVERED below.")
+    L.append("  - The balance line is bucket arithmetic, NOT a proof every file was covered.")
+    L.append("  - 'medium' confidence = AI created the file but it changed since (a human may")
+    L.append("    have rewritten part of it). git / file-history raise confidence; they don't gate.")
     L.append("")
     L.append("COVERAGE (pre-flight):")
     for k, v in (cov.get("log_counts") or {}).items():
@@ -80,14 +79,15 @@ def render_text(rep):
              f"{cov.get('fh_paths_attributed', 0)} paths attributed")
     if cov.get("unparseable"):
         L.append(f"  UNPARSEABLE sources (NOT mined): {len(cov['unparseable'])}")
-    L.append("  NOT COVERED by v0.5.x (absent, not assumed-clean):")
+    L.append("  NOT COVERED (absent, not assumed-clean):")
     for s in NOT_COVERED:
         L.append(f"    - {s}")
     L.append("")
     L.append("EXECUTIVE SUMMARY:")
     L.append(f"  files scanned (with AI evidence in scope): {rep['scanned']}")
-    L.append(f"  marking candidates (NOT applied — frozen):  {rep['mark']}")
-    L.append(f"  report-only (not eligible even when unfrozen): {rep['report_only']}")
+    L.append(f"  AI-origin (markable):  {rep['mark']}   "
+             f"[high confidence: {rep['conf_high']}, medium: {rep['conf_medium']}]")
+    L.append(f"  report-only (not AI-origin — mixed/edited/indirect): {rep['report_only']}")
     L.append("")
     L.append("  report-only, by reason:")
     for klass, n in sorted(rep["by_class"].items(), key=lambda x: -x[1]):
@@ -95,17 +95,16 @@ def render_text(rep):
             continue
         L.append(f"    {n:5d}  {klass}")
     L.append("")
-    L.append(f"  Of the {rep['mark']} candidates, {rep['higher_risk_count']} are higher-risk"
-             " (non-git or multi-session).")
+    L.append("  Apply marks HIGH confidence by default; `--min-confidence medium` includes the rest.")
     L.append("")
     L.append("BY WORKSPACE:")
     for ws, acts in sorted(rep["workspaces"].items()):
         L.append(f"  {ws}")
-        L.append(f"      candidate={acts.get('mark',0)}  report-only={acts.get('report-only',0)}")
+        L.append(f"      ai-origin={acts.get('mark',0)}  report-only={acts.get('report-only',0)}")
     L.append("")
-    L.append("SAMPLE marking candidates (advisory only — NOT auto-marked in v0.5.x):")
+    L.append("SAMPLE AI-origin candidates:")
     for c in [x for x in rep["classifications"] if x["action"] == "mark"][:10]:
-        L.append(f"  [{'git' if c['vcs'] else 'non-git'}] {c['path']}")
+        L.append(f"  [{c.get('confidence','?'):6s}|{'git' if c['vcs'] else 'non-git'}] {c['path']}")
         L.append(f"        why: {c['reason']}")
     L.append("")
     L.append("bucket balance (not a coverage proof): " + ("OK" if rep["balanced"] else "FAILED"))

@@ -251,13 +251,15 @@ def parse_claude_log(path, cov):
 # ---------------------------------------------------------------------------
 # Codex adapters (nested jsonl, archived jsonl, flat-legacy whole-doc)
 # ---------------------------------------------------------------------------
-def _codex_emit_from_items(items, session, source_log, cwd, cov):
+def _codex_emit_from_items(items, session, source_log, cov):
     """Shared item walker for nested-line payloads and flat-legacy items[].
-    items: list of (seq, ts, payload) tuples."""
+    items: list of (seq, ts, payload, cwd_at_that_point) tuples — cwd is the value in effect
+    AT that item (carried forward through session_meta/turn_context), not the final cwd, so a
+    relative apply_patch path resolves against the directory it was actually run in."""
     events = []
     call_ok = {}     # call_id -> success
     pending = {}     # call_id -> [events]
-    for seq, ts, p in items:
+    for seq, ts, p, cwd in items:
         if not isinstance(p, dict):
             continue
         ptype = p.get("type")
@@ -315,12 +317,12 @@ def parse_codex_nested(path, cov):
             cwd = p.get("cwd") or cwd
         elif d.get("type") == "turn_context":
             cwd = p.get("cwd") or cwd
-        items.append((seq, d.get("timestamp", ""), p))
+        items.append((seq, d.get("timestamp", ""), p, cwd))   # cwd AS OF this item
     if session is None:
         m = re.search(r"-([0-9a-f]{8}-[0-9a-f-]+)\.jsonl$", os.path.basename(path))
         session = m.group(1) if m else os.path.basename(path)
     cov["bad_lines"] = cov.get("bad_lines", 0) + bad
-    return _codex_emit_from_items(items, session, path, cwd, cov)
+    return _codex_emit_from_items(items, session, path, cov)
 
 
 def parse_codex_flat_legacy(path, cov):
@@ -340,8 +342,10 @@ def parse_codex_flat_legacy(path, cov):
     for seq, it in enumerate(raw_items):
         if isinstance(it, dict):
             p = it.get("payload") if isinstance(it.get("payload"), dict) else it
-            items.append((seq, it.get("timestamp", ""), p))
-    return _codex_emit_from_items(items, session, path, cwd, cov)
+            if isinstance(p, dict) and p.get("type") in ("session_meta", "turn_context"):
+                cwd = p.get("cwd") or cwd
+            items.append((seq, it.get("timestamp", ""), p, cwd))
+    return _codex_emit_from_items(items, session, path, cov)
 
 
 # ---------------------------------------------------------------------------

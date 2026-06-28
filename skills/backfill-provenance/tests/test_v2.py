@@ -131,17 +131,20 @@ fh_index = {ai_path: [{"session": "sessA", "version": 1, "snapshot_file": snapfi
 evidence = graph.build_path_evidence(events, fh_index, mark.read_bytes, mark.snap_bytes)
 cls = {c["path"]: c for c in classify.classify_all(evidence, events)}
 
-check("A: pure-AI unchanged + fh second signal (non-git) -> MARK",
-      cls[ai_path]["action"] == "mark" and cls[ai_path]["marker_type"] == "ai-origin")
-check("B: human-base AI-edit -> NOT marked (report-only)",
-      cls[human_path]["action"] == "report-only")
-check("C: diverged disk -> report-only", cls[div_path]["action"] == "report-only")
+# QUARANTINE MODEL (v0.6): mark on ORIGIN. git/fh raise confidence, they don't gate.
+check("A: AI-created, bytes unchanged -> MARK, HIGH confidence",
+      cls[ai_path]["action"] == "mark" and cls[ai_path]["confidence"] == "high"
+      and cls[ai_path]["marker_type"] == "ai-origin")
+check("B: human-base AI-edit -> report-only (mixed_authorship), NEVER marked",
+      cls[human_path]["action"] == "report-only" and cls[human_path]["klass"] == "mixed_authorship")
+check("C: AI-created but diverged on disk -> MARK, MEDIUM confidence (origin still AI)",
+      cls[div_path]["action"] == "mark" and cls[div_path]["confidence"] == "medium")
 
-# Inversion: remove the file-history second signal -> A must drop to report-only (non-git)
+# git/fh are confidence annotations, not gates: A marks even with no fh and non-git
 evidence2 = graph.build_path_evidence(events, {}, mark.read_bytes, mark.snap_bytes)
 cls2 = {c["path"]: c for c in classify.classify_all(evidence2, events)}
-check("A without 2nd signal (non-git) -> report-only (non_git_single_signal)",
-      cls2[ai_path]["action"] == "report-only" and cls2[ai_path]["klass"] == "non_git_single_signal")
+check("A without fh + non-git STILL marks (origin gate, recall-biased)",
+      cls2[ai_path]["action"] == "mark" and cls2[ai_path]["confidence"] == "high")
 
 # The real CLAUDE.md trap: human content, AI edited, disk == human base -> never mark
 trap = os.path.join(tmp, "CLAUDE.md")
@@ -154,11 +157,12 @@ trap_cls = classify.classify_all(trap_ev, trap_events)[0]
 check("CLAUDE.md trap (human base, AI edit) -> never marked",
       trap_cls["action"] != "mark")
 
-# VCS branch: same pure-AI file, but inside version control -> repo is the 2nd signal -> MARK
+# git annotation: under VCS, A still marks (origin gate) and records git as a confidence signal
 classify.in_vcs = lambda p: True
-cls_vcs = {c["path"]: c for c in classify.classify_all(evidence2, events)}  # evidence2 has NO fh signal
-check("A under VCS marks via repo lineage (no fh signal needed)",
-      cls_vcs[ai_path]["action"] == "mark" and cls_vcs[ai_path]["machine_reason"] == "vcs_lineage")
+cls_vcs = {c["path"]: c for c in classify.classify_all(evidence2, events)}
+check("A under VCS marks (origin) and notes git as a confidence signal",
+      cls_vcs[ai_path]["action"] == "mark"
+      and any("git" in s for s in cls_vcs[ai_path]["signals"]))
 classify.in_vcs = lambda p: False  # restore non-git default for remaining checks
 
 
@@ -197,6 +201,64 @@ print("\n[grammar drift guard — DESIGN §0]")
 check("grammar recognizes ai-origin:backfilled", provenance.is_marked("x ai-origin:backfilled y"))
 check("grammar still recognizes legacy ai:suggestion", provenance.is_marked("ai:suggestion"))
 check("grammar_sha stable + nonempty", len(provenance.grammar_sha()) == 64)
+
+
+print("\n[v0.6 safety net]")
+# write-race: report-time content_sha must catch a file changed between report and apply
+wr = os.path.join(tmp, "race.py")
+open(wr, "w").write("# v1\n")
+orig_sha = hashlib.sha256(b"# v1\n").hexdigest()
+dec = {"path": wr, "confidence": "high", "content_sha": orig_sha,
+       "origin_event": {"session": "s"}, "sessions": ["s"], "machine_reason": "x"}
+open(wr, "w").write("# HUMAN REWROTE THIS\n")   # changed after report
+_, c_wr, _ = mark.apply_markers([dec], "sess", do_write=True)
+check("write-race: changed-since-report file is NOT marked",
+      c_wr.get("changed-since-classify") == 1 and not provenance.is_marked(open(wr).read()))
+
+# restore fail-loud on a missing backup blob
+fl = os.path.join(tmp, "faillaud.md")
+open(fl, "w").write("hello\n")
+dec_fl = {"path": fl, "confidence": "high", "content_sha": hashlib.sha256(b"hello\n").hexdigest(),
+          "origin_event": {"session": "s"}, "sessions": ["s"], "machine_reason": "x"}
+_, _, rid_fl = mark.apply_markers([dec_fl], "sess", do_write=True)
+os.remove(os.path.join(mark.BACKUP_ROOT, rid_fl, mark._bak_name(fl)))   # nuke the backup
+check("restore fails loud (rc!=0) when a backup blob is missing", mark.restore(rid_fl) != 0)
+
+# symlink + hardlink are skipped, never written through
+tgt = os.path.join(tmp, "real_target.md"); open(tgt, "w").write("TARGET\n")
+sym = os.path.join(tmp, "link.md"); os.symlink(tgt, sym)
+dec_sym = {"path": sym, "confidence": "high", "content_sha": None,
+           "origin_event": {"session": "s"}, "sessions": ["s"], "machine_reason": "x"}
+_, c_sym, _ = mark.apply_markers([dec_sym], "sess", do_write=True)
+check("symlink skipped, target untouched",
+      c_sym.get("skip-symlink") == 1 and open(tgt).read() == "TARGET\n")
+h1 = os.path.join(tmp, "h1.md"); open(h1, "w").write("HL\n")
+h2 = os.path.join(tmp, "h2.md"); os.link(h1, h2)
+dec_h = {"path": h2, "confidence": "high", "content_sha": None,
+         "origin_event": {"session": "s"}, "sessions": ["s"], "machine_reason": "x"}
+_, c_h, _ = mark.apply_markers([dec_h], "sess", do_write=True)
+check("hardlinked file skipped", c_h.get("skip-hardlink") == 1)
+
+# Codex per-call cwd: relative paths resolve against the cwd in effect AT each call
+add1 = {"type": "custom_tool_call", "name": "apply_patch", "call_id": "c1",
+        "input": "*** Begin Patch\n*** Add File: rel1.txt\n+hi\n*** End Patch"}
+out1 = {"type": "custom_tool_call_output", "call_id": "c1", "output": "Success."}
+add2 = {"type": "custom_tool_call", "name": "apply_patch", "call_id": "c2",
+        "input": "*** Begin Patch\n*** Add File: rel2.txt\n+yo\n*** End Patch"}
+out2 = {"type": "custom_tool_call_output", "call_id": "c2", "output": "Success."}
+items = [(0, "", add1, "/wsA"), (1, "", out1, "/wsA"), (2, "", add2, "/wsB"), (3, "", out2, "/wsB")]
+cev = {e["tuid"]: e for e in adapters._codex_emit_from_items(items, "csess", "log", {})}
+check("codex cwd-at-call: c1 resolves under /wsA, c2 under /wsB (not final cwd)",
+      cev["c1"]["path"] == "/wsA/rel1.txt" and cev["c2"]["path"] == "/wsB/rel2.txt")
+
+# unmark is structural: own-line marker removed, marker sharing a content line preserved
+um = os.path.join(tmp, "um.md")
+open(um, "w").write("<!-- ai-origin:backfilled | session:s -->\nreal content\nsee ai-origin:backfilled in this sentence\n")
+mark.unmark(um, "sess", do_write=True)
+um_txt = open(um).read()
+check("unmark removes own-line marker but keeps content line mentioning it",
+      "real content" in um_txt and "in this sentence" in um_txt
+      and not um_txt.startswith("<!-- ai-origin:backfilled"))
 
 # cleanup
 import shutil

@@ -104,48 +104,56 @@ def _mtime_in_window(path, events):
 
 
 def classify_path(ev, events_for_path):
-    """ev = graph evidence for the path. Returns classification dict."""
+    """ev = graph evidence for the path. Returns classification dict.
+
+    QUARANTINE MODEL (v0.6): the marker is `ai-origin:backfilled` (unverified, fallible) — it
+    flags "a human didn't write this," to be cleared/confirmed by a human or the gate later.
+    So we bias toward RECALL: mark on ORIGIN. An AI-*created* file is marked; over-marking a
+    human file is a cheap, reversible false-positive. The expensive error is MISSING an AI file
+    (it then reads as human-trusted). git + file-history are CONFIDENCE annotations, not gates.
+    Mixed (AI edited a human-created file) -> report-only: origin is human, and backfill cannot
+    auto-produce a correct partial marker; a human adapts it later."""
     path = ev["path"]
     vcs = in_vcs(path)
     out = {
         "path": path, "workspace": workspace_of(path), "vcs": vcs,
         "engines": ev["engines"], "sessions": ev["sessions"],
         "klass": None, "action": None, "marker_type": None,
+        "confidence": None, "content_sha": ev.get("disk_sha"),
         "machine_reason": None, "reason": None,
         "signals": [], "origin_event": ev.get("origin_event"),
         "fh_signal": ev.get("fh_signal"), "match_kind": ev.get("match_kind"),
     }
+    # confidence annotations (do not gate)
+    if vcs:
+        out["signals"].append("git-tracked tree")
+    if ev.get("fh_signal"):
+        out["signals"].append("file-history holds these exact bytes")
 
     if ev["matched"]:
-        # creation-rooted whole-file match -> pure-AI creation (mixed authorship can't match,
-        # since mixed has no AI creation root). Apply the inversion gate.
-        out["signals"].append(f"whole-file {ev['match_kind']} hash-match to disk")
-        if vcs:
-            out.update(klass="ai_origin", action="mark", marker_type="ai-origin",
-                       machine_reason="vcs_lineage",
-                       reason="AI created these exact bytes and they're unchanged; version control records any human edits.")
-            out["signals"].append("under version control (2nd signal)")
-            return out
-        # non-VCS: need a 2nd independent signal
-        in_window, later_human = _mtime_in_window(path, events_for_path)
-        if ev["fh_signal"] and in_window:
-            out["signals"].append("file-history independently stored these exact bytes")
-            out.update(klass="ai_origin", action="mark", marker_type="ai-origin",
-                       machine_reason="two_signal_non_vcs",
-                       reason="AI created these exact bytes; a second independent store (file-history) agrees, and nothing edited it later.")
-            return out
-        out.update(klass="non_git_single_signal", action="report-only", marker_type=None,
-                   machine_reason="non_git_single_signal",
-                   reason=PLAIN["non_git_single_signal"])
-        if later_human:
-            out["signals"].append("file modified after last AI touch (possible human edit)")
+        # current on-disk bytes provably are an AI creation (direct body or same-session replay)
+        out["signals"].insert(0, f"whole-file {ev['match_kind']} hash-match to disk")
+        out.update(klass="ai_origin", action="mark", marker_type="ai-origin",
+                   confidence="high", machine_reason="origin_bytes_on_disk",
+                   reason="AI created this file and the current bytes still match what AI wrote.")
         return out
 
-    # not matched -> report-only or leave-alone
+    if ev.get("has_successful_creation"):
+        # AI created the file, but current bytes diverge (edited since, or human-rewritten).
+        # Origin is still AI -> quarantine at MEDIUM confidence (fallible; human clears it).
+        out["signals"].insert(0, "AI creation event for this path (current bytes diverged)")
+        out.update(klass="ai_origin", action="mark", marker_type="ai-origin",
+                   confidence="medium", machine_reason="ai_created_diverged",
+                   reason="AI originally created this file; it has changed since, so a human may have rewritten part or all of it. Flagged unverified for review.")
+        return out
+
+    # no AI creation event -> not AI-origin. Report-only (mixed/edited/indirect/etc.).
     reason = ev.get("abstain_reason") or "no_match"
     if ev["indirect_only"]:
         reason = "indirect_write"
-    out.update(klass=reason, action="report-only", marker_type=None,
+    elif any(e["kind"] == "edit" for e in events_for_path):
+        reason = "mixed_authorship"   # AI edited a human-created file
+    out.update(klass=reason, action="report-only", marker_type=None, confidence=None,
                machine_reason=reason, reason=PLAIN.get(reason, reason))
     return out
 

@@ -14,6 +14,7 @@ import json
 import math
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -29,8 +30,13 @@ QUARANTINE_GLOBS = [
     ".env*", "*.pem", "*.key", "*_key", "*secret*", "*token*", "*credential*",
     "auth.json", ".brain-api-token", "id_rsa*", "*.p12", "*.pfx",
 ]
-_SECRET_PREFIXES = ("AKIA", "ASIA", "ghp_", "gho_", "xox", "sk-", "-----BEGIN",
-                    "AIza", "ya29.", "glpat-", "SG.")
+_SECRET_PREFIXES = ("AKIA", "ASIA", "ghp_", "gho_", "ghs_", "github_pat_", "xox", "sk-",
+                    "-----BEGIN", "AIza", "ya29.", "glpat-", "SG.", "AAAA", "hooks.slack.com")
+_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{6,}")
+# secret-ish assignment: KEY = "<40+ high-entropy>" (avoids bare commit-hash / checksum false positives)
+_ASSIGN_SECRET = re.compile(
+    r"(?i)(?:secret|token|password|passwd|api[_-]?key|access[_-]?key|private[_-]?key)\s*[:=]\s*"
+    r"['\"]?([A-Za-z0-9+/=_\-]{16,})")
 
 CODE_EXT = {".py", ".js", ".ts", ".tsx", ".jsx", ".sh", ".rb", ".go", ".rs", ".java",
             ".c", ".cpp", ".h", ".css", ".scss", ".sql", ".yaml", ".yml", ".toml"}
@@ -52,7 +58,7 @@ def read_bytes(path, placeholder_sink=None, max_bytes=8 * 1024 * 1024):
     recorded (never read as empty, never hydrated)."""
     if not os.path.exists(path):
         return None
-    if os.path.getsize(path) == 0 and is_placeholder(path):
+    if is_placeholder(path):   # unconditional: a nonzero placeholder is still not real bytes
         if placeholder_sink is not None:
             placeholder_sink.add(path)
         return None
@@ -92,6 +98,10 @@ def quarantined_by_glob(path):
 
 
 def quarantined_by_content(data):
+    """True if the file looks like it holds a secret. Conservative toward SKIPPING such a
+    file (never mutate a credential). Scans the WHOLE file. Targets real secret shapes
+    (known prefixes, JWTs, secret-named assignments) rather than bare hex/base64 tokens,
+    which would false-positive on commit hashes / checksums in ordinary docs."""
     if data is None:
         return False
     try:
@@ -100,9 +110,10 @@ def quarantined_by_content(data):
         return False
     if any(p in text for p in _SECRET_PREFIXES):
         return True
-    # long high-entropy token on a single line -> likely a secret
-    for tok in re.findall(r"[A-Za-z0-9+/=_\-]{40,}", text[:20000]):
-        if _shannon(tok) > 4.0:
+    if _JWT.search(text):
+        return True
+    for m in _ASSIGN_SECRET.finditer(text):
+        if _shannon(m.group(1)) > 3.0:
             return True
     return False
 
@@ -117,13 +128,13 @@ def medium_of(path):
     return "other"
 
 
-def render_marker(origin_session, date, content_sha, backfill_session, medium):
+def render_marker(origin_session, date, content_sha, backfill_session, medium, confidence="high"):
     short = (origin_session or "unknown").split("/")[0]
     if medium == "markdown":
         return (f"<!-- {MARKER_STATE} | session:{short} | date:{date} "
-                f"| content-sha256:{content_sha} | marked-by:{backfill_session} -->")
+                f"| confidence:{confidence} | content-sha256:{content_sha} | marked-by:{backfill_session} -->")
     return (f"# {MARKER_STATE} · session:{short} · {date} "
-            f"· content-sha256:{content_sha} · marked-by:{backfill_session}")
+            f"· confidence:{confidence} · content-sha256:{content_sha} · marked-by:{backfill_session}")
 
 
 _FRONTMATTER = re.compile(r"^---\n.*?\n---\n", re.DOTALL)
@@ -175,8 +186,12 @@ def _conflicted_sibling(path):
 def apply_markers(decisions, backfill_session, do_write, run_id=None):
     """decisions: list of classification dicts with action=='mark' chosen for application.
     Returns (manifest, counts). do_write False => dry-run (no bytes touched)."""
-    run_id = run_id or datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+    # run_id carries a random suffix so a second apply in the same second can never overwrite
+    # a prior run's backups/manifest (DESIGN §7.2).
+    run_id = run_id or (datetime.datetime.now().strftime("%Y%m%dT%H%M%S") + "-" + secrets.token_hex(3))
     run_dir = os.path.join(BACKUP_ROOT, run_id)
+    if do_write and os.path.exists(os.path.join(run_dir, "changes.jsonl")):
+        raise RuntimeError(f"run_id {run_id} already has a manifest — refusing to overwrite")
     manifest, counts = [], {}
 
     def bump(k):
@@ -184,6 +199,15 @@ def apply_markers(decisions, backfill_session, do_write, run_id=None):
 
     for d in decisions:
         path = d["path"]
+        # never write through a link: a symlink (final or parent) or a hardlinked file would
+        # mutate an out-of-scope target that restore cannot fully undo.
+        if os.path.islink(path) or os.path.realpath(path) != os.path.abspath(path):
+            bump("skip-symlink"); continue
+        try:
+            if os.lstat(path).st_nlink > 1:
+                bump("skip-hardlink"); continue
+        except OSError:
+            bump("unreadable"); continue
         medium = medium_of(path)
         if medium == "other":
             bump("skip-unsupported"); continue
@@ -198,39 +222,45 @@ def apply_markers(decisions, backfill_session, do_write, run_id=None):
         if provenance.is_marked(text):
             bump("already-marked"); continue
 
+        cur_sha = hashlib.sha256(data).hexdigest()   # bytes EXCLUDING marker (DESIGN §5.5)
+        expected = d.get("content_sha")              # report-time disk sha (write-race guard)
+        if expected and cur_sha != expected:
+            bump("changed-since-classify"); continue
         date = datetime.date.today().isoformat()
-        content_sha = hashlib.sha256(data).hexdigest()   # bytes EXCLUDING marker (DESIGN §5.5)
+        confidence = d.get("confidence") or "high"
         origin = (d.get("origin_event") or {}).get("session") or (d.get("sessions") or ["unknown"])[0]
-        marker = render_marker(origin, date, content_sha, backfill_session, medium)
+        marker = render_marker(origin, date, cur_sha, backfill_session, medium, confidence)
         new_text = insert_marker(text, marker, medium)
 
         if not do_write:
             bump("would-mark")
             manifest.append({"path": path, "op": "would-mark", "marker": marker,
-                             "content_sha256": content_sha, "medium": medium,
+                             "content_sha256": cur_sha, "medium": medium, "confidence": confidence,
                              "origin_session": origin, "machine_reason": d.get("machine_reason")})
             continue
 
-        # write path: re-hash immediately before write (DESIGN §7.5)
+        # write path: re-hash immediately before write to catch a TOCTOU change since our read
         before = _sha_file(path)
-        if before != content_sha:
+        if before != cur_sha:
             bump("changed-since-classify"); continue
         os.makedirs(run_dir, exist_ok=True)
         shutil.copy2(path, os.path.join(run_dir, _bak_name(path)))
-        with open(path, "w") as f:
+        fd = os.open(path, os.O_WRONLY | os.O_TRUNC | os.O_NOFOLLOW)
+        with os.fdopen(fd, "w") as f:
             f.write(new_text)
         after = _sha_file(path)
-        # verify-after-write: exactly one marker, no conflicted sibling (§7.5)
+        # verify-after-write: EXACTLY ONE backfill marker, no conflicted sibling (§7.5)
         reread = open(path, errors="ignore").read()
-        ok = len(provenance.find_markers(reread)) >= 1 and not _conflicted_sibling(path)
+        n_backfill = len(re.findall(r"ai-origin:backfilled", reread, re.I))
+        ok = n_backfill == 1 and not _conflicted_sibling(path)
         if not ok:
             shutil.copy2(os.path.join(run_dir, _bak_name(path)), path)
             bump("verify-failed-restored"); continue
         bump("marked")
         manifest.append({"path": path, "op": "add-marker", "before_sha256": before,
-                         "after_sha256": after, "content_sha256": content_sha,
-                         "marker": marker, "medium": medium, "origin_session": origin,
-                         "backfill_session": backfill_session,
+                         "after_sha256": after, "content_sha256": cur_sha,
+                         "marker": marker, "medium": medium, "confidence": confidence,
+                         "origin_session": origin, "backfill_session": backfill_session,
                          "at": datetime.datetime.now().isoformat()})
 
     if do_write and manifest:
@@ -249,18 +279,31 @@ def restore(run_id):
         print(f"no manifest for run {run_id} at {run_dir}")
         return 1
     n = 0
+    failures = []
     for ln in open(man):
         rec = json.loads(ln)
         if rec.get("op") != "add-marker":
             continue
-        bak = os.path.join(run_dir, _bak_name(rec["path"]))
-        if os.path.exists(bak):
-            shutil.copy2(bak, rec["path"])
-            post = _sha_file(rec["path"])
-            status = "OK" if post == rec.get("before_sha256") else "WARN-mismatch"
+        path = rec["path"]
+        bak = os.path.join(run_dir, _bak_name(path))
+        if not os.path.exists(bak):
+            failures.append(f"MISSING-BACKUP {path} (still marked)")
+            print(f"  FAIL missing-backup {path}")
+            continue
+        shutil.copy2(bak, path)
+        post = _sha_file(path)
+        if post == rec.get("before_sha256"):
             n += 1
-            print(f"  restored {status} {rec['path']}")
+            print(f"  restored OK {path}")
+        else:
+            failures.append(f"HASH-MISMATCH {path} (did not return to pre-mark bytes)")
+            print(f"  FAIL hash-mismatch {path}")
     print(f"restored {n} files from run {run_id}")
+    if failures:
+        print(f"RESTORE FAILED for {len(failures)} file(s):")
+        for f in failures:
+            print(f"  - {f}")
+        return 2
     return 0
 
 
@@ -272,9 +315,13 @@ def unmark(path, backfill_session, do_write):
         print(f"unreadable: {path}"); return 1
     text = data.decode("utf-8", "surrogatepass")
     lines = text.split("\n")
-    kept = [ln for ln in lines if not re.search(r"\bai-origin:backfilled\b", ln, re.I)]
+    # structural: remove ONLY a line that is itself a backfill marker comment (md or code),
+    # never a line that also carries content.
+    struct = re.compile(r"^\s*(?:<!--\s*ai-origin:backfilled\b.*?-->|#\s*ai-origin:backfilled\b.*)\s*$", re.I)
+    kept = [ln for ln in lines if not struct.match(ln)]
     if len(kept) == len(lines):
-        print(f"no backfill marker found in {path}"); return 1
+        print(f"no own-line backfill marker found in {path} "
+              f"(a marker sharing a line with content is left untouched)"); return 1
     if not do_write:
         print(f"would unmark {path} (removes {len(lines)-len(kept)} marker line(s)) — dry-run")
         return 0
