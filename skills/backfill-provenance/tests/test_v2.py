@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
 # backfill-provenance v2 / tests. Run directly: python3 tests/test_v2.py
-# Covers DESIGN §5.2 replay fixtures, the CLAUDE.md mixed-authorship trap (§2.4a),
-# the inversion two-signal gate (§2.6), Bash analysis (§2.1), apply_patch (§2.5),
-# marker round-trip + reconciliation (§7, §10), secret quarantine (§7.1).
+# Covers replay fixtures, the CLAUDE.md mixed-authorship trap, the v0.6 origin gate +
+# high/medium confidence, Bash analysis, apply_patch, the data-integrity safety net
+# (write-race, restore-fail-loud, symlink/hardlink, Codex per-call cwd, structural unmark),
+# marker round-trip, and secret quarantine.
 
 import os
 import sys
@@ -85,7 +86,7 @@ check("mv -> move edge", any(k == "move" for k, d in mv))
 
 
 # ---------------------------------------------------------------------------
-print("\n[end-to-end on a temp tree — CLAUDE.md trap + inversion gate]")
+print("\n[end-to-end on a temp tree — CLAUDE.md trap + origin gate + confidence]")
 tmp = tempfile.mkdtemp(prefix="pv2test_", dir=os.path.join(SKILL, "tests"))
 # The temp tree sits inside this repo's .git, so force the VCS branch explicitly per test
 # to exercise both gate paths (DESIGN §2.6). Recent timestamps so the mtime window holds.
@@ -120,7 +121,7 @@ events = [
                     div_path, body="# original ai content\n", tuid="t3", success=True, eligible=True),
 ]
 
-# file-history index: snapshot of A's exact bytes (independent store) -> second signal
+# file-history index: snapshot of A's exact bytes -> raises confidence (no longer a gate)
 import json as _json
 fh_dir = os.path.join(tmp, ".fh", "sessA")
 os.makedirs(fh_dir)

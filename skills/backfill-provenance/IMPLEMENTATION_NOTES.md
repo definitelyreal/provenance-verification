@@ -58,10 +58,11 @@ file-history snapshot of the same bytes. **A 3-round adversarial review (build/r
 proved this false and the claim is withdrawn.** file-history is Claude Code's *own pre-edit
 undo buffer*, emitted by the same engine and session as the write — Signal A and Signal B
 are two recordings of ONE operation, not two independent attestations. file-history also has
-no Codex equivalent. So the non-VCS two-signal gate does not provide independence, and it is
-**disabled** in v0.5.x along with all auto-marking (see `KNOWN_LIMITATIONS.md`). The only
-genuinely independent second signal identified is git-history authorship; re-founding the
-gate on it is deferred to v0.6.
+no Codex equivalent. So the non-VCS two-signal gate did not provide independence. It was
+disabled in v0.5.1 and **removed entirely in v0.6**, which abandoned the precision-first
+"prove the file is still untouched" framing for the recall-biased quarantine model in the
+banner above (the marker is fallible and reversible, so a second signal isn't needed to mark;
+git/file-history only raise confidence).
 
 Deviation 1 (file-history is a path-attributed *base/continuity* store, not an origin
 signal) stands and is in fact the correct framing — Deviation 2 was the inconsistent half.
@@ -74,12 +75,17 @@ matching); narrow Bash-heredoc eligibility (§2.1); Codex nested/flat-legacy/arc
 (§4, §7); Dropbox placeholder guard (§6); report-primary, dry-run default (§8.2);
 `ai-origin:backfilled` constant (§4, open-q #1).
 
-**NOT implemented / unsound — see `KNOWN_LIMITATIONS.md` for the full list:** §3.6
+Also implemented in v0.6: the origin gate with `high`/`medium` confidence; the write-race
+sha guard, restore-fail-loud, symlink/hardlink skip, unique run-id, structural unmark, and
+secret-file skip (the data-integrity safety net that makes reversible marking safe); Codex
+per-call cwd resolution.
+
+**NOT implemented / removed — see `KNOWN_LIMITATIONS.md` for the full list:** §3.6
 delete/recreate segmentation (absent; an earlier draft wrongly claimed it was done), §3.4
-move/copy survival (parsed, not propagated), the §2.6 two-signal gate (unsound, disabled),
-§0 grammar-drift guard, §8.8 resume-shows-choices, §7.1 scan-before-hash ordering, §3.5
-append marker block, several named-but-never-emitted abstention classes, Gemini coverage,
-and the reconciliation BLOCKER (balance-only). Auto-marking is frozen until v0.6.
+move/copy survival (parsed, not propagated — the one gap that can *miss* an AI file), the §2.6
+two-signal/inversion gate (removed in v0.6), §0 grammar-drift guard, §8.8 resume-shows-choices,
+§7.1 scan-before-hash ordering, §3.5 append marker block, several named-but-never-emitted
+abstention classes, Gemini coverage, and the reconciliation BLOCKER (balance-only).
 
 ---
 _Claude · 2026-06-28 · Session: 6ab1c2ae-25dd-40bf-9ca2-05072ee58b83_

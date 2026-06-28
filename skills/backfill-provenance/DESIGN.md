@@ -1,6 +1,16 @@
 <!-- ai:suggestion | session: 0f1af029-e60e-421a-9ad7-1fd0f887c8b5 | date: 2026-06-27 -->
 # backfill-provenance — Skill Design (Revised, post-adversarial-round-3)
 
+> **SUPERSEDED IN PART (read as history, not current behavior).** This is the original
+> pre-build design. A later 3-round adversarial review of the *implementation* overturned its
+> core gate philosophy: §2.6's "inversion threshold / two independent signals" and the whole
+> precision-first "prove the file is still untouched before marking" stance are **gone**. The
+> shipped tool (v0.6) treats `ai-origin:backfilled` as a recall-biased, unverified, reversible
+> **quarantine** flag and marks on **origin** (git/file-history only raise confidence). For
+> current behavior read `IMPLEMENTATION_NOTES.md` (the model) and `KNOWN_LIMITATIONS.md` (honest
+> status); this file is kept for the evidence ledger (§12), the adapter/schema facts, and the
+> design history. Where this doc and those two disagree, those two win.
+
 Status: `ai-suggestion:unverified`. Nothing here is built or decided; this is the design Michael reviews before any code. Hardened against round 3 (2 Opus + 2 Codex). Round-3 facts were re-checked on this machine before writing (see §12 verification ledger), and the round-2 ledger's two errors are corrected: subagent count was off ~27x (real: 248 under Parents-Health, 3,044 total), and `file-history` was mis-categorized as a timestamp source when it is actually the richest **content** store on this machine.
 
 The single biggest change in round 3: **the value proposition inverts.** Verified on disk, only **1** `.git` exists across all of `Code/local`. Under the inversion-avoidance invariant, a hash-match in a treeless tree cannot distinguish "AI wrote it, untouched" from "human edited then reverted" / "Dropbox re-synced." So auto-marking is the rare exception, not the headline. **The primary deliverable is the report** (an inventory of un-provenanced AI artifacts, with recovered evidence); marking is a small, hard-gated subset. The non-git opt-in escape hatch is **removed** (it was a sanctioned bulk override of the spine), replaced by a **two-independent-signals** rule.

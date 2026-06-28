@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # ai-processed:unverified · session:6ab1c2ae-25dd-40bf-9ca2-05072ee58b83 · 2026-06-28
 # backfill-provenance v2 / classify.py
-# Turn per-path evidence (graph.py) into a classification + action, applying the
-# inversion-avoidance spine (DESIGN §4) and the two-independent-signals gate (§2.6).
-# Conservative by default: mark ONLY a creation-rooted whole-file hash-match to disk that
-# clears the inversion threshold; everything else is report-only or leave-alone.
+# Turn per-path evidence (graph.py) into a classification + action under the v0.6 QUARANTINE
+# model: mark on ORIGIN (an AI creation event), biased toward recall. high confidence when
+# current bytes still match what AI wrote, medium when AI created the file but it changed
+# since. git + file-history raise confidence, they do NOT gate. Mixed (AI edited a human
+# file) -> report-only. (Supersedes DESIGN §2.6's inversion gate; see IMPLEMENTATION_NOTES.md.)
 
 import os
 import time
