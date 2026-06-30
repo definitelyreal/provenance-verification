@@ -4,8 +4,8 @@
 # the user opted into via user.local (enforce_paths). No config => silent no-op, so it
 # does nothing weird out of the box. MIT.
 
-SRC="${BASH_SOURCE[0]}"; HOOK_DIR="$(cd "$(dirname "$SRC")" && pwd)"; PV_HOME="$(cd "$HOOK_DIR/../.." && pwd)"
-USER_CFG="$PV_HOME/claude/user.local.md"
+SRC="${BASH_SOURCE[0]}"; HOOK_DIR="$(cd "$(dirname "$SRC")" && pwd)"; PV_HOME="$(cd "$HOOK_DIR/.." && pwd)"
+USER_CFG="$PV_HOME/user.local.md"
 
 # Tool data may arrive via env (TOOL_NAME/TOOL_INPUT) or stdin JSON.
 INPUT=""; [ -t 0 ] || INPUT="$(cat)"
@@ -43,7 +43,7 @@ done
 [ "$MATCH" = "1" ] || exit 0
 
 # Detect a marker via the canonical recognizer (accepts legacy forms too).
-if [ -f "$FILE_PATH" ] && python3 "$PV_HOME/reference/provenance.py" check "$FILE_PATH" >/dev/null 2>&1; then
+if [ -f "$FILE_PATH" ] && python3 "$PV_HOME/provenance.py" check "$FILE_PATH" >/dev/null 2>&1; then
   exit 0
 fi
 echo "⚠️ provenance-verification: '$BASE' lacks a provenance marker."

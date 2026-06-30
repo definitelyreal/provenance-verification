@@ -5,10 +5,10 @@ __pycache__/
 *.pyc
 build/
 
+# runtime artifact written by the update-check hook
+.last-update-check
+
 # personal / not for publication
 private/
-claude/user.local.md
-skills/*/backups/
-skills/*/inventory.json
-skills/*/scan.json
+user.local.md
 .review-scratch/

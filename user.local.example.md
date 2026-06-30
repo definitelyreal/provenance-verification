@@ -1,7 +1,7 @@
 ---
 # Copy this file to user.local.md (same dir), fill it in, set customized: true.
-# user.local.md is gitignored — never committed. It EXTENDS claude/RULES.md, it does
-# not replace it, so you keep receiving standard updates while your overrides survive.
+# user.local.md is gitignored — never committed. It EXTENDS the provenance-verification.md
+# standard, it does not replace it, so you keep receiving updates while your overrides survive.
 customized: false
 verifier_name: ""          # used in `verified <name> <date>`
 surfaces: []               # mediums you use, e.g. [markdown, google-sheets, google-docs, slack]

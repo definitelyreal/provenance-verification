@@ -3,7 +3,7 @@
 # normalized, and emitted. Replaces grep-by-hand in scattered hooks so detection
 # can never drift again. Dependency-light: stdlib only.
 # Canonical form: <type>:<status>  e.g. ai-suggestion:unverified
-# See ../spec/SPEC.md.
+# See provenance-verification.md.
 #
 # ai-processed:unverified · session:0f1af029-e60e-421a-9ad7-1fd0f887c8b5 · 2026-06-25
 

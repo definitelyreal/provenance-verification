@@ -3,7 +3,7 @@
 # Fetches and NOTIFIES when the repo is behind upstream. Never auto-pulls executable
 # code (a deliberate supply-chain choice for a provenance tool). Daily-throttled. MIT.
 
-SRC="${BASH_SOURCE[0]}"; HOOK_DIR="$(cd "$(dirname "$SRC")" && pwd)"; PV_HOME="$(cd "$HOOK_DIR/../.." && pwd)"
+SRC="${BASH_SOURCE[0]}"; HOOK_DIR="$(cd "$(dirname "$SRC")" && pwd)"; PV_HOME="$(cd "$HOOK_DIR/.." && pwd)"
 command -v git >/dev/null 2>&1 || exit 0
 [ -d "$PV_HOME/.git" ] || exit 0
 

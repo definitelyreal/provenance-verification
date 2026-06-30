@@ -21,5 +21,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-The specification text under spec/ is licensed separately under CC-BY-4.0.
-See LICENSE-spec.md.
+
+SPECIFICATION TEXT LICENSE (CC-BY-4.0)
+
+The standard text in `provenance-verification.md` is licensed separately under the
+Creative Commons Attribution 4.0 International License (CC-BY-4.0):
+https://creativecommons.org/licenses/by/4.0/
+You may share and adapt it for any purpose, including commercially, with appropriate credit.
+
+All other files in this repository (provenance.py, install.sh, hooks/, adapter-template.md,
+and the rest) are covered by the MIT License above.
