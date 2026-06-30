@@ -1,6 +1,6 @@
 ---
-# Copy this file to user.local.md (same dir), fill it in, set customized: true.
-# user.local.md is gitignored — never committed. It EXTENDS the provenance-verification.md
+# Copy this file to user-settings.md (same dir), fill it in, set customized: true.
+# user-settings.md is gitignored — never committed. It EXTENDS the provenance-verification-standard.md
 # standard, it does not replace it, so you keep receiving updates while your overrides survive.
 customized: false
 verifier_name: ""          # used in `verified <name> <date>`

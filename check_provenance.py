@@ -3,7 +3,7 @@
 # normalized, and emitted. Replaces grep-by-hand in scattered hooks so detection
 # can never drift again. Dependency-light: stdlib only.
 # Canonical form: <type>:<status>  e.g. ai-suggestion:unverified
-# See provenance-verification.md.
+# See provenance-verification-standard.md.
 #
 # ai-processed:unverified · session:0f1af029-e60e-421a-9ad7-1fd0f887c8b5 · 2026-06-25
 
@@ -104,7 +104,7 @@ def resolve(path):
 # --- CLI ------------------------------------------------------------------
 def _main(argv):
     if len(argv) >= 2 and argv[1] == "check":
-        # `provenance.py check <file>`: exit 0 if marked, 1 if not.
+        # `check_provenance.py check <file>`: exit 0 if marked, 1 if not.
         try:
             with open(argv[2], "r", errors="ignore") as f:
                 text = f.read()
@@ -117,7 +117,7 @@ def _main(argv):
     if len(argv) >= 2 and argv[1] == "normalize":
         print(normalize(argv[2] if len(argv) > 2 else sys.stdin.read().strip()))
         return 0
-    print("usage: provenance.py {check <file> | normalize <marker>}", file=sys.stderr)
+    print("usage: check_provenance.py {check <file> | normalize <marker>}", file=sys.stderr)
     return 2
 
 

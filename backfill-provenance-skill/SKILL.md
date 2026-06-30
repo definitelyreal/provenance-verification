@@ -1,12 +1,12 @@
 ---
-name: backfill-provenance
+name: backfill-provenance-skill
 description: Retroactively mark AI provenance across a project's existing files by reconstructing what AI authored from chat/git history and file evidence, per the provenance-verification standard. A conservative, human-gated, reversible process — not a tool. Use when asked to "backfill provenance", "rescan and mark what AI wrote", "audit provenance", "tag existing AI files", or before adopting the standard on an existing project.
 ---
 <!-- ai-suggestion:unverified | session:715279ef-4d0d-4864-ba13-20b0a5801ec3 | date:2026-06-29 -->
 
 # backfill-provenance
 
-A **process** an agent follows to retroactively mark provenance on a project that predates the standard. There is no tool to run — you do the work: enumerate the files, decide what AI authored, show the user, then mark the provable subset reversibly with the user's go-ahead. The full standard is [provenance-verification.md](../provenance-verification.md); read it first for the marker grammar.
+A **process** an agent follows to retroactively mark provenance on a project that predates the standard. There is no tool to run — you do the work: enumerate the files, decide what AI authored, show the user, then mark the provable subset reversibly with the user's go-ahead. The full standard is [provenance-verification-standard.md](../provenance-verification-standard.md); read it first for the marker grammar.
 
 This process is grounded in a real audit (RG Collab, 2026-05-24) that found AI-surfaced facts had drifted from human truth. Two principles came out of it and govern everything below:
 

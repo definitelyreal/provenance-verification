@@ -2,7 +2,7 @@
 
 **Optional.** Only write one if this project binds the standard to domain-specific structures (a fact ledger, a CRM field layout, a do-not-autoresolve list). Most projects just use the defaults and need no adapter.
 
-Place this file inside the project it adapts (e.g. `<project>/.provenance/adapter.md`) and reference it from your `user.local.md` `adapters:` list. The adapter lives with the project, not in this repo.
+Place this file inside the project it adapts (e.g. `<project>/.provenance/adapter.md`) and reference it from your `user-settings.md` `adapters:` list. The adapter lives with the project, not in this repo.
 
 ## Mapping
 How this project's representation maps to the canonical `type:status`:

@@ -10,5 +10,5 @@ build/
 
 # personal / not for publication
 private/
-user.local.md
+user-customization/user-settings.md
 .review-scratch/

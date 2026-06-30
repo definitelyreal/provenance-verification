@@ -1,6 +1,6 @@
 #!/bin/bash
 # provenance-verification installer.
-#   bash install.sh             # install: add @import, register hooks, seed user.local
+#   bash install.sh             # install: add @import, register hooks, seed user-settings
 #   bash install.sh --update    # git pull --ff-only, then re-register hooks
 #   bash install.sh --uninstall # remove the @import line (hooks left for manual removal)
 # MIT.
@@ -10,7 +10,7 @@ SRC="${BASH_SOURCE[0]}"; PV_HOME="$(cd "$(dirname "$SRC")" && pwd)"
 CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
 CLAUDE_MD="$CLAUDE_HOME/CLAUDE.md"
 SETTINGS="$CLAUDE_HOME/settings.json"
-STANDARD="$PV_HOME/provenance-verification.md"
+STANDARD="$PV_HOME/provenance-verification-standard.md"
 IMPORT_LINE="@$STANDARD"
 MODE="${1:-install}"
 
@@ -25,9 +25,9 @@ ensure_import() {
 }
 
 seed_user_cfg() {
-  local ex="$PV_HOME/user.local.example.md" dst="$PV_HOME/user.local.md"
+  local ex="$PV_HOME/user-customization/user-settings.example.md" dst="$PV_HOME/user-customization/user-settings.md"
   if [ ! -f "$dst" ]; then cp "$ex" "$dst"; echo "• seeded $dst (fill it in — it is gitignored)"
-  else echo "• user.local.md already exists, left as-is"; fi
+  else echo "• user-settings.md already exists, left as-is"; fi
 }
 
 register_hooks() {
@@ -56,9 +56,9 @@ def add(event, matcher, cmd):
     if matcher is not None:
         grp["matcher"] = matcher
     arr.append(grp)
-add("PostToolUse", "Write", f'bash "{pv}/hooks/provenance-marker-check.sh"')
-add("PostToolUse", None,    f'bash "{pv}/hooks/provenance-surface-check.sh"')
-add("SessionStart", None,   f'bash "{pv}/hooks/provenance-update-check.sh"')
+add("PostToolUse", "Write", f'bash "{pv}/claude-hooks/provenance-marker-check.sh"')
+add("PostToolUse", None,    f'bash "{pv}/claude-hooks/provenance-surface-check.sh"')
+add("SessionStart", None,   f'bash "{pv}/claude-hooks/provenance-update-check.sh"')
 json.dump(s, open(settings_path, "w"), indent=2)
 print(f"• registered hooks in {settings_path}")
 PY

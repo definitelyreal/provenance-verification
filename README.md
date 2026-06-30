@@ -2,7 +2,7 @@
 
 A portable standard for marking the **trust state** of any artifact — what produced it, whether it's been verified, and whether the source it rests on is still current. One standard, importable into any Claude Code setup or project; owned by none.
 
-**👉 The standard itself is [provenance-verification.md](provenance-verification.md).** It is one self-contained file, and it is what an AI agent loads and follows. This README is the longer "why and how" around it; the standard is the tight, complete rulebook. If you only read one file, read that one.
+**👉 The standard itself is [provenance-verification-standard.md](provenance-verification-standard.md).** It is one self-contained file, and it is what an AI agent loads and follows. This README is the longer "why and how" around it; the standard is the tight, complete rulebook. If you only read one file, read that one.
 
 ## The problem
 
@@ -22,11 +22,11 @@ Every rule in the standard was earned by a real failure. The adversarial gate's 
 
 ## What's in the repo
 
-- **[provenance-verification.md](provenance-verification.md)** — the standard. The complete, canonical rulebook: marker grammar, the three axes, the adversarial gate, tool-trust tiers, the legacy/transition parser. *CC-BY-4.0.*
-- **[provenance.py](provenance.py)** — the one marker recognizer/normalizer (stdlib only). The single place markers are recognized, so detection can't drift. Use it in CI / pre-commit.
-- **[hooks/](hooks/)** — optional, warn-only Claude Code hooks (marker nudge on Write, surface reminder for Sheets/Docs/clipboard, daily update notifier).
-- **[backfill-provenance/SKILL.md](backfill-provenance/SKILL.md)** — a process (not a tool) for retroactively marking provenance on a project that predates the standard: reconstruct what AI authored, show the user, mark the provable subset reversibly.
-- **[adapter-template.md](adapter-template.md)** — optional per-project adapter for domain specifics (a fact ledger, a CRM field layout, a do-not-autoresolve list). Most projects need none.
+- **[provenance-verification-standard.md](provenance-verification-standard.md)** — the standard. The complete, canonical rulebook: marker grammar, the three axes, the adversarial gate, tool-trust tiers, the legacy/transition parser. *CC-BY-4.0.*
+- **[check_provenance.py](check_provenance.py)** — the one marker recognizer/normalizer (stdlib only). The single place markers are recognized, so detection can't drift. Use it in CI / pre-commit.
+- **[claude-hooks/](claude-hooks/)** — optional, warn-only Claude Code hooks (marker nudge on Write, surface reminder for Sheets/Docs/clipboard, daily update notifier).
+- **[backfill-provenance-skill/SKILL.md](backfill-provenance-skill/SKILL.md)** — a process (not a tool) for retroactively marking provenance on a project that predates the standard: reconstruct what AI authored, show the user, mark the provable subset reversibly.
+- **[user-customization/adapter-template.md](user-customization/adapter-template.md)** — optional per-project adapter for domain specifics (a fact ledger, a CRM field layout, a do-not-autoresolve list). Most projects need none.
 
 ## Install (Claude Code)
 
@@ -35,13 +35,28 @@ git clone <repo-url> ~/.claude/provenance-verification
 bash ~/.claude/provenance-verification/install.sh
 ```
 
-This adds one `@import` line for `provenance-verification.md` to your `~/.claude/CLAUDE.md`, wires the same standard into Codex (`AGENTS.md`) and Gemini (`GEMINI.md`), registers the optional hooks, and seeds a gitignored `user.local.md` for your personal settings. On first run the standard asks once about your setup (verifier name, surfaces, enforced paths) and records it.
+This adds one `@import` line for `provenance-verification-standard.md` to your `~/.claude/CLAUDE.md`, wires the same standard into Codex (`AGENTS.md`) and Gemini (`GEMINI.md`), registers the optional hooks, and seeds a gitignored `user-customization/user-settings.md` for your personal settings. On first run the standard asks once about your setup (verifier name, surfaces, enforced paths) and records it.
 
 ## Use in another repo
 
-- **Behavioral rules:** add `@~/.claude/provenance-verification/provenance-verification.md` to that repo's CLAUDE.md (or just rely on the global import).
-- **Validator in CI:** `python3 provenance.py check <file>` (exit 1 if an AI file is unmarked).
-- **Pinning a version:** add this repo as a git submodule.
+- **Behavioral rules:** add `@~/.claude/provenance-verification/provenance-verification-standard.md` to that repo's CLAUDE.md (or just rely on the global import).
+- **Validator in CI:** `python3 check_provenance.py check <file>` (exit 1 if an AI file is unmarked).
+
+### Have another repo pull this in automatically
+
+`@import` can reference this standard but cannot *download* it — the file has to already be on disk. Two ways to make that happen when the consumer repo is set up:
+
+- **Git submodule (recommended, pins a version).** In the consumer repo:
+  ```
+  git submodule add https://github.com/definitelyreal/provenance-verification .provenance-verification
+  ```
+  Then `git clone --recurse-submodules` (or `git submodule update --init`) pulls it in on checkout, and the consumer's CLAUDE.md imports `@.provenance-verification/provenance-verification-standard.md`. The submodule is pinned to a commit you bump deliberately — good supply-chain hygiene for a provenance tool. Update with `git submodule update --remote`.
+- **Bootstrap clone in the consumer's setup script.** A one-liner that fetches it if missing:
+  ```
+  [ -d ~/.claude/provenance-verification ] || git clone https://github.com/definitelyreal/provenance-verification ~/.claude/provenance-verification
+  bash ~/.claude/provenance-verification/install.sh
+  ```
+  Simpler, always tracks latest `master` (not pinned).
 
 ## Updating
 
@@ -49,8 +64,8 @@ This adds one `@import` line for `provenance-verification.md` to your `~/.claude
 
 ## Customization
 
-Personal config lives in `user.local.md` (gitignored). It **extends**, never replaces, the standard, so you keep receiving updates while your overrides survive. Per-project domain specifics go in optional, co-located adapters.
+Personal config lives in `user-customization/user-settings.md` (gitignored). It **extends**, never replaces, the standard, so you keep receiving updates while your overrides survive. Per-project domain specifics go in optional, co-located adapters.
 
 ## License
 
-Dual-licensed in one [LICENSE](LICENSE) file: code under **MIT**, the standard text (`provenance-verification.md`) under **CC-BY-4.0**.
+Dual-licensed in one [LICENSE](LICENSE) file: code under **MIT**, the standard text (`provenance-verification-standard.md`) under **CC-BY-4.0**.
